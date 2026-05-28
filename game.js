@@ -15,6 +15,10 @@ const addSkillButton = document.querySelector("#addSkill");
 const deleteUnit = document.querySelector("#deleteUnit");
 const resetMap = document.querySelector("#resetMap");
 const restoreMap = document.querySelector("#restoreMap");
+const duelTitle = document.querySelector("#duelTitle");
+const duelUnits = document.querySelector("#duelUnits");
+const duelStats = document.querySelector("#duelStats");
+const duelResult = document.querySelector("#duelResult");
 
 const inputs = {
   hp: document.querySelector("#unitHp"),
@@ -53,6 +57,7 @@ let units = structuredClone(initialUnits);
 let selectedUnitId = null;
 let drag = null;
 let skillDrag = null;
+let duel = null;
 let idCounter = 100;
 
 function unit(type, label, x, y, name, overrides = {}) {
@@ -80,6 +85,15 @@ function unit(type, label, x, y, name, overrides = {}) {
         wis: overrides.primary?.wis ?? 10,
         cha: overrides.primary?.cha ?? 10
       },
+      bonus: {
+        str: overrides.bonus?.str ?? 0,
+        con: overrides.bonus?.con ?? 0,
+        spd: overrides.bonus?.spd ?? 0,
+        pre: overrides.bonus?.pre ?? 0,
+        int: overrides.bonus?.int ?? 0,
+        wis: overrides.bonus?.wis ?? 0,
+        cha: overrides.bonus?.cha ?? 0
+      },
       skills: overrides.skills ?? []
     }
   };
@@ -94,7 +108,8 @@ function obstacle(x, y) {
     attack: 0,
     defense: 999,
     move: 0,
-    primary: { str: 0, con: 0, spd: 0, pre: 0, int: 0, wis: 0, cha: 0 }
+    primary: { str: 0, con: 0, spd: 0, pre: 0, int: 0, wis: 0, cha: 0 },
+    bonus: { str: 0, con: 0, spd: 0, pre: 0, int: 0, wis: 0, cha: 0 }
   });
 }
 
@@ -151,7 +166,14 @@ function renderSheet() {
   primaryStats.innerHTML = PRIMARY_STATS.map(([key, label]) => `
     <label class="stat-field">
       ${label}
-      <input type="number" min="0" max="30" data-stat="${key}" value="${piece.stats.primary[key]}">
+      <span>
+        <small>기본</small>
+        <input type="number" min="0" max="30" data-stat="${key}" value="${piece.stats.primary[key]}">
+      </span>
+      <span>
+        <small>보너스</small>
+        <input type="number" min="-99" max="99" data-bonus="${key}" value="${piece.stats.bonus[key]}">
+      </span>
     </label>
   `).join("");
 
@@ -164,8 +186,10 @@ function ensureUnitShape(piece) {
   piece.stats.maxStamina ??= piece.stats.stamina ?? 10;
   piece.stats.stamina ??= piece.stats.maxStamina;
   piece.stats.primary ??= {};
+  piece.stats.bonus ??= {};
   PRIMARY_STATS.forEach(([key]) => {
     piece.stats.primary[key] ??= piece.type === "obstacle" ? 0 : 10;
+    piece.stats.bonus[key] ??= 0;
   });
   piece.stats.skills ??= [];
 }
@@ -307,6 +331,8 @@ function isEnemy(attacker, target) {
 }
 
 function attack(attacker, defender) {
+  prepareDuel(attacker, defender);
+
   const damage = Math.max(1, attacker.stats.attack - defender.stats.defense);
   defender.stats.hp = clamp(defender.stats.hp - damage, 0, defender.stats.maxHp);
 
@@ -355,6 +381,10 @@ function syncSheetToUnit() {
 
   primaryStats.querySelectorAll("[data-stat]").forEach((input) => {
     piece.stats.primary[input.dataset.stat] = clamp(Number(input.value) || 0, 0, 30);
+  });
+
+  primaryStats.querySelectorAll("[data-bonus]").forEach((input) => {
+    piece.stats.bonus[input.dataset.bonus] = clamp(Number(input.value) || 0, -99, 99);
   });
 
   skillList.querySelectorAll("[data-skill-name]").forEach((input) => {
@@ -461,17 +491,21 @@ function writeLog(text, icon = "⚔") {
 function resetToBlank() {
   units = [];
   selectedUnitId = null;
+  duel = null;
   writeLog("빈 배틀맵으로 재설정했습니다.", "↻");
   render();
   renderSheet();
+  renderDuel();
 }
 
 function restoreInitial() {
   units = structuredClone(initialUnits);
   selectedUnitId = null;
+  duel = null;
   writeLog("초기 배치로 복귀했습니다.", "↩");
   render();
   renderSheet();
+  renderDuel();
 }
 
 function escapeHtml(value) {
@@ -485,6 +519,92 @@ function escapeHtml(value) {
 document.querySelectorAll("[data-add]").forEach((button) => {
   button.addEventListener("click", () => addUnit(button.dataset.add));
 });
+
+function prepareDuel(attacker, defender) {
+  duel = {
+    attackerId: attacker.id,
+    defenderId: defender.id,
+    activeStat: null,
+    result: null
+  };
+  renderDuel();
+}
+
+function renderDuel() {
+  const attacker = getUnit(duel?.attackerId);
+  const defender = getUnit(duel?.defenderId);
+  const ready = Boolean(attacker && defender);
+
+  duelTitle.textContent = ready ? "전투 상황" : "대기 중";
+  duelUnits.innerHTML = ready
+    ? `
+      <p><b>${attacker.stats.name}</b> vs <b>${defender.stats.name}</b></p>
+      <p>능력치 버튼을 누르면 d20 + 기본 + 보너스로 판정합니다.</p>
+    `
+    : `<p>적 유닛 위로 드래그하면 판정 대결이 준비됩니다.</p>`;
+
+  duelStats.innerHTML = PRIMARY_STATS.map(([key, label]) => `
+    <button class="duel-stat${duel?.activeStat === key ? " active" : ""}" type="button" data-duel-stat="${key}" ${ready ? "" : "disabled"}>
+      ${label}
+    </button>
+  `).join("");
+
+  duelStats.querySelectorAll("[data-duel-stat]").forEach((button) => {
+    button.addEventListener("click", () => toggleDuelStat(button.dataset.duelStat));
+  });
+
+  if (!duel?.result) {
+    duelResult.innerHTML = `<span>능력치를 선택하면 양쪽 주사위를 굴립니다.</span>`;
+    return;
+  }
+
+  const statLabel = PRIMARY_STATS.find(([key]) => key === duel.result.stat)?.[1] ?? "판정";
+  duelResult.innerHTML = `
+    <span>${statLabel} 판정</span>
+    <div class="duel-roll"><span>${attacker.stats.name}</span><b>${duel.result.attackerTotal}</b></div>
+    <div class="duel-roll"><span>${defender.stats.name}</span><b>${duel.result.defenderTotal}</b></div>
+    <div class="duel-winner">${duel.result.winner}</div>
+  `;
+}
+
+function toggleDuelStat(stat) {
+  const attacker = getUnit(duel?.attackerId);
+  const defender = getUnit(duel?.defenderId);
+  if (!attacker || !defender) return;
+
+  if (duel.activeStat === stat) {
+    duel.activeStat = null;
+    duel.result = null;
+    renderDuel();
+    return;
+  }
+
+  ensureUnitShape(attacker);
+  ensureUnitShape(defender);
+
+  const attackerRoll = rollD20();
+  const defenderRoll = rollD20();
+  const attackerTotal = attackerRoll + attacker.stats.primary[stat] + attacker.stats.bonus[stat];
+  const defenderTotal = defenderRoll + defender.stats.primary[stat] + defender.stats.bonus[stat];
+
+  duel.activeStat = stat;
+  duel.result = {
+    stat,
+    attackerTotal,
+    defenderTotal,
+    winner: attackerTotal > defenderTotal
+      ? `${attacker.stats.name} 우세`
+      : defenderTotal > attackerTotal
+        ? `${defender.stats.name} 우세`
+        : "동률"
+  };
+
+  renderDuel();
+}
+
+function rollD20() {
+  return Math.floor(Math.random() * 20) + 1;
+}
 
 board.addEventListener("contextmenu", (event) => {
   const pieceElement = event.target.closest(".piece");
@@ -509,3 +629,4 @@ document.addEventListener("contextmenu", (event) => {
 
 render();
 renderSheet();
+renderDuel();

@@ -8,6 +8,20 @@
   </head>
   <body>
     <main class="app" aria-label="TRPG 전술 보드">
+      <aside id="duelBar" class="duel-bar" aria-label="주사위 판정 대결">
+        <header>
+          <span>판정 대결</span>
+          <strong id="duelTitle">대기 중</strong>
+        </header>
+        <div id="duelUnits" class="duel-units">
+          <p>적 유닛 위로 드래그하면 판정 대결이 준비됩니다.</p>
+        </div>
+        <div id="duelStats" class="duel-stats"></div>
+        <div id="duelResult" class="duel-result">
+          <span>능력치를 선택하면 양쪽 주사위를 굴립니다.</span>
+        </div>
+      </aside>
+
       <section class="board-wrap" aria-label="배틀 맵">
         <div class="board-frame">
           <div id="board" class="board" aria-label="10 x 8 전술 격자"></div>
@@ -31,16 +45,16 @@
 
           <section class="vital-section" aria-label="체력과 스테미나">
             <label>
-              체력
-              <span>
+              <b>체력</b>
+              <span class="vital-inputs">
                 <input id="unitHp" type="number" min="0" max="999">
                 /
                 <input id="unitMaxHp" type="number" min="1" max="999">
               </span>
             </label>
             <label>
-              스테미나
-              <span>
+              <b>스테미나</b>
+              <span class="vital-inputs">
                 <input id="unitStamina" type="number" min="0" max="999">
                 /
                 <input id="unitMaxStamina" type="number" min="1" max="999">
