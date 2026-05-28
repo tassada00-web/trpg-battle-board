@@ -729,16 +729,10 @@ function sendDiscordRoll(attacker, defender, result, skillName) {
   const webhookUrl = discordWebhook.value.trim();
   if (!webhookUrl) return;
 
-  const attackerLabel = PRIMARY_STATS.find(([key]) => key === result.attackerStat)?.[1] ?? result.attackerStat;
-  const defenderLabel = PRIMARY_STATS.find(([key]) => key === result.defenderStat)?.[1] ?? result.defenderStat;
   const content = [
-    "**전투 판정 결과**",
-    skillName ? `스킬: **${skillName}**` : "",
-    `공격자 **${attacker.stats.name}** [${attackerLabel}]: **${result.attackerTotal}**`,
-    `방어자 **${defender.stats.name}** [${defenderLabel}]: **${result.defenderTotal}**`,
-    `결과값(방어자 - 공격자): **${result.diff}**`,
-    `판정: **${result.winner}**`
-  ].filter(Boolean).join("\n");
+    `**${attacker.stats.name}**: **${result.attackerTotal}**`,
+    `**${defender.stats.name}**: **${result.defenderTotal}**`
+  ].join("\n");
 
   fetch(webhookUrl, {
     method: "POST",
