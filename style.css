@@ -711,6 +711,71 @@ button:hover {
   margin-top: 16px;
 }
 
+.save-panel {
+  max-height: min(720px, calc(100vh - 32px));
+  display: grid;
+  grid-template-rows: auto minmax(180px, 1fr) auto;
+}
+
+.save-list {
+  margin-top: 14px;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  overflow: auto;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #080808;
+  padding: 10px;
+}
+
+.save-entry {
+  width: 100%;
+  min-height: 50px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  background: #171717;
+  border-color: #333;
+}
+
+.save-entry.active {
+  border-color: var(--line);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.save-entry small {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.empty-save {
+  color: var(--muted);
+  text-align: center;
+  padding: 32px 10px;
+}
+
+.single-field {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-weight: 800;
+  margin-top: 14px;
+}
+
+.single-field input {
+  min-height: 38px;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  background: #080808;
+  color: var(--text);
+  padding: 6px 8px;
+}
+
 @media (max-width: 980px) {
   .app {
     grid-template-columns: 1fr;

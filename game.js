@@ -14,7 +14,7 @@ const skillList = document.querySelector("#skillList");
 const addSkillButton = document.querySelector("#addSkill");
 const deleteUnit = document.querySelector("#deleteUnit");
 const resetMap = document.querySelector("#resetMap");
-const restoreMap = document.querySelector("#restoreMap");
+const saveLoadMap = document.querySelector("#saveLoadMap");
 const duelTitle = document.querySelector("#duelTitle");
 const duelUnits = document.querySelector("#duelUnits");
 const duelStats = document.querySelector("#duelStats");
@@ -22,6 +22,20 @@ const duelResult = document.querySelector("#duelResult");
 const mapModal = document.querySelector("#mapModal");
 const closeMapModal = document.querySelector("#closeMapModal");
 const cancelMapModal = document.querySelector("#cancelMapModal");
+const saveLoadModal = document.querySelector("#saveLoadModal");
+const closeSaveLoadModal = document.querySelector("#closeSaveLoadModal");
+const saveList = document.querySelector("#saveList");
+const saveMapButton = document.querySelector("#saveMapButton");
+const loadMapButton = document.querySelector("#loadMapButton");
+const nameModal = document.querySelector("#nameModal");
+const saveNameInput = document.querySelector("#saveNameInput");
+const closeNameModal = document.querySelector("#closeNameModal");
+const cancelNameModal = document.querySelector("#cancelNameModal");
+const confirmModal = document.querySelector("#confirmModal");
+const confirmTitle = document.querySelector("#confirmTitle");
+const confirmMessage = document.querySelector("#confirmMessage");
+const confirmYes = document.querySelector("#confirmYes");
+const confirmNo = document.querySelector("#confirmNo");
 const mapInputs = {
   cols: document.querySelector("#mapCols"),
   rows: document.querySelector("#mapRows"),
@@ -69,6 +83,9 @@ let drag = null;
 let skillDrag = null;
 let duel = null;
 let idCounter = 100;
+let selectedSaveId = null;
+let pendingConfirm = null;
+const SAVE_KEY = "trpg-battle-board-saves";
 
 function unit(type, label, x, y, name, overrides = {}) {
   return {
@@ -510,18 +527,6 @@ function resetToBlank() {
   openMapModal();
 }
 
-function restoreInitial() {
-  cols = 10;
-  rows = 8;
-  units = structuredClone(initialUnits);
-  selectedUnitId = null;
-  duel = null;
-  writeLog("초기 배치로 복귀했습니다.", "↩");
-  render();
-  renderSheet();
-  renderDuel();
-}
-
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -688,6 +693,150 @@ function buildMapFromForm(event) {
   renderDuel();
 }
 
+function openSaveLoadModal() {
+  renderSaveList();
+  saveLoadModal.hidden = false;
+}
+
+function closeSaveLoad() {
+  saveLoadModal.hidden = true;
+}
+
+function getSaves() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SAVE_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function setSaves(saves) {
+  localStorage.setItem(SAVE_KEY, JSON.stringify(saves));
+}
+
+function renderSaveList() {
+  const saves = getSaves();
+  if (!saves.length) {
+    selectedSaveId = null;
+    saveList.innerHTML = `<div class="empty-save">저장된 기록이 없습니다.</div>`;
+    return;
+  }
+
+  if (!saves.some((save) => save.id === selectedSaveId)) selectedSaveId = null;
+  saveList.innerHTML = saves.map((save) => `
+    <button class="save-entry${save.id === selectedSaveId ? " active" : ""}" type="button" data-save-id="${save.id}">
+      <span>
+        <b>${escapeHtml(save.name)}</b>
+        <small>${save.cols} x ${save.rows} | 유닛 ${save.units.length}개</small>
+      </span>
+      <small>${escapeHtml(save.savedAt)}</small>
+    </button>
+  `).join("");
+
+  saveList.querySelectorAll("[data-save-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      selectedSaveId = selectedSaveId === button.dataset.saveId ? null : button.dataset.saveId;
+      renderSaveList();
+    });
+  });
+}
+
+function requestSaveMap() {
+  if (selectedSaveId) {
+    openConfirm("덮어쓰기", "선택한 저장 기록을 현재 맵으로 덮어쓰기 하겠습니까?", overwriteSelectedSave);
+    return;
+  }
+
+  saveNameInput.value = "";
+  nameModal.hidden = false;
+  saveNameInput.focus();
+}
+
+function closeNameInput() {
+  nameModal.hidden = true;
+}
+
+function createNewSave(event) {
+  event.preventDefault();
+  const name = saveNameInput.value.trim();
+  if (!name) return;
+
+  const saves = getSaves();
+  const save = buildSave(name);
+  saves.unshift(save);
+  setSaves(saves);
+  selectedSaveId = save.id;
+  closeNameInput();
+  renderSaveList();
+  writeLog(`${name} 저장 완료.`, "✓");
+}
+
+function overwriteSelectedSave() {
+  const saves = getSaves();
+  const target = saves.find((save) => save.id === selectedSaveId);
+  if (!target) return;
+
+  const next = buildSave(target.name, target.id);
+  setSaves(saves.map((save) => save.id === selectedSaveId ? next : save));
+  renderSaveList();
+  writeLog(`${target.name} 덮어쓰기 완료.`, "✓");
+}
+
+function requestLoadMap() {
+  if (!selectedSaveId) {
+    writeLog("불러올 저장 기록을 선택하세요.", "!");
+    return;
+  }
+
+  openConfirm("불러오기", "선택한 저장 기록을 불러오기 하겠습니까?", loadSelectedSave);
+}
+
+function loadSelectedSave() {
+  const save = getSaves().find((item) => item.id === selectedSaveId);
+  if (!save) return;
+
+  cols = save.cols;
+  rows = save.rows;
+  units = structuredClone(save.units);
+  selectedUnitId = null;
+  duel = null;
+  closeSaveLoad();
+  writeLog(`${save.name} 불러오기 완료.`, "↩");
+  render();
+  renderSheet();
+  renderDuel();
+}
+
+function buildSave(name, id = crypto.randomUUID()) {
+  return {
+    id,
+    name,
+    cols,
+    rows,
+    units: structuredClone(units),
+    savedAt: new Date().toLocaleString("ko-KR")
+  };
+}
+
+function openConfirm(title, message, onYes) {
+  pendingConfirm = onYes;
+  confirmTitle.textContent = title;
+  confirmMessage.textContent = message;
+  confirmModal.hidden = false;
+}
+
+function closeConfirm() {
+  pendingConfirm = null;
+  confirmModal.hidden = true;
+}
+
+function acceptConfirm() {
+  const action = pendingConfirm;
+  closeConfirm();
+  action?.();
+}
+
 function generateMapUnits(allyCount, enemyCount, obstacleCount) {
   const generated = [];
   const occupied = new Set();
@@ -745,10 +894,18 @@ unitSheet.addEventListener("submit", (event) => event.preventDefault());
 addSkillButton.addEventListener("click", addSkill);
 deleteUnit.addEventListener("click", removeSelectedUnit);
 resetMap.addEventListener("click", resetToBlank);
-restoreMap.addEventListener("click", restoreInitial);
+saveLoadMap.addEventListener("click", openSaveLoadModal);
 mapModal.addEventListener("submit", buildMapFromForm);
 closeMapModal.addEventListener("click", closeMapResetModal);
 cancelMapModal.addEventListener("click", closeMapResetModal);
+closeSaveLoadModal.addEventListener("click", closeSaveLoad);
+saveMapButton.addEventListener("click", requestSaveMap);
+loadMapButton.addEventListener("click", requestLoadMap);
+nameModal.addEventListener("submit", createNewSave);
+closeNameModal.addEventListener("click", closeNameInput);
+cancelNameModal.addEventListener("click", closeNameInput);
+confirmYes.addEventListener("click", acceptConfirm);
+confirmNo.addEventListener("click", closeConfirm);
 
 document.addEventListener("contextmenu", (event) => {
   if (!event.target.closest(".piece")) event.preventDefault();

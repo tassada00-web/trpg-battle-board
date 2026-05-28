@@ -94,7 +94,7 @@
 
         <div class="map-tools">
           <button id="resetMap" type="button">맵 재설정</button>
-          <button id="restoreMap" type="button">맵 복귀</button>
+          <button id="saveLoadMap" type="button">맵 저장/불러오기</button>
         </div>
 
         <div class="log" aria-live="polite">
@@ -139,6 +139,50 @@
         </menu>
       </section>
     </form>
+
+    <section id="saveLoadModal" class="modal" aria-label="맵 저장과 불러오기" hidden>
+      <div class="modal-panel save-panel">
+        <header>
+          <h2>맵 저장/불러오기</h2>
+          <button id="closeSaveLoadModal" type="button" aria-label="닫기">×</button>
+        </header>
+        <div id="saveList" class="save-list" aria-label="저장된 기록"></div>
+        <menu>
+          <button id="saveMapButton" type="button">저장하기</button>
+          <button id="loadMapButton" type="button">불러오기</button>
+        </menu>
+      </div>
+    </section>
+
+    <form id="nameModal" class="modal" aria-label="저장 이름 입력" hidden>
+      <section class="modal-panel">
+        <header>
+          <h2>새로 저장하기</h2>
+          <button id="closeNameModal" type="button" aria-label="닫기">×</button>
+        </header>
+        <label class="single-field">
+          저장할 이름
+          <input id="saveNameInput" type="text" maxlength="40" autocomplete="off">
+        </label>
+        <menu>
+          <button id="cancelNameModal" type="button">취소</button>
+          <button type="submit">저장</button>
+        </menu>
+      </section>
+    </form>
+
+    <section id="confirmModal" class="modal" aria-label="확인" hidden>
+      <div class="modal-panel">
+        <header>
+          <h2 id="confirmTitle">확인</h2>
+        </header>
+        <p id="confirmMessage"></p>
+        <menu>
+          <button id="confirmNo" type="button">아니오</button>
+          <button id="confirmYes" type="button">예</button>
+        </menu>
+      </div>
+    </section>
 
     <script src="game.js"></script>
   </body>
