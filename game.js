@@ -26,8 +26,11 @@ const cancelMapModal = document.querySelector("#cancelMapModal");
 const saveLoadModal = document.querySelector("#saveLoadModal");
 const closeSaveLoadModal = document.querySelector("#closeSaveLoadModal");
 const saveList = document.querySelector("#saveList");
+const mapSaveList = document.querySelector("#mapSaveList");
 const saveMapButton = document.querySelector("#saveMapButton");
 const loadMapButton = document.querySelector("#loadMapButton");
+const mapSaveButton = document.querySelector("#mapSaveButton");
+const mapLoadButton = document.querySelector("#mapLoadButton");
 const nameModal = document.querySelector("#nameModal");
 const saveNameInput = document.querySelector("#saveNameInput");
 const closeNameModal = document.querySelector("#closeNameModal");
@@ -78,7 +81,7 @@ const initialUnits = [
   obstacle(1, 6)
 ];
 
-let units = structuredClone(initialUnits);
+let units = [];
 let selectedUnitId = null;
 let drag = null;
 let skillDrag = null;
@@ -761,6 +764,7 @@ function openMapModal() {
   mapInputs.allies.value = "3";
   mapInputs.enemies.value = "4";
   mapInputs.obstacles.value = "5";
+  renderSaveList();
   mapModal.hidden = false;
 }
 
@@ -813,14 +817,17 @@ function setSaves(saves) {
 
 function renderSaveList() {
   const saves = getSaves();
+  const targets = [saveList, mapSaveList].filter(Boolean);
   if (!saves.length) {
     selectedSaveId = null;
-    saveList.innerHTML = `<div class="empty-save">저장된 기록이 없습니다.</div>`;
+    targets.forEach((target) => {
+      target.innerHTML = `<div class="empty-save">저장된 기록이 없습니다.</div>`;
+    });
     return;
   }
 
   if (!saves.some((save) => save.id === selectedSaveId)) selectedSaveId = null;
-  saveList.innerHTML = saves.map((save) => `
+  const markup = saves.map((save) => `
     <button class="save-entry${save.id === selectedSaveId ? " active" : ""}" type="button" data-save-id="${save.id}">
       <span>
         <b>${escapeHtml(save.name)}</b>
@@ -830,10 +837,13 @@ function renderSaveList() {
     </button>
   `).join("");
 
-  saveList.querySelectorAll("[data-save-id]").forEach((button) => {
-    button.addEventListener("click", () => {
-      selectedSaveId = selectedSaveId === button.dataset.saveId ? null : button.dataset.saveId;
-      renderSaveList();
+  targets.forEach((target) => {
+    target.innerHTML = markup;
+    target.querySelectorAll("[data-save-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        selectedSaveId = selectedSaveId === button.dataset.saveId ? null : button.dataset.saveId;
+        renderSaveList();
+      });
     });
   });
 }
@@ -899,6 +909,7 @@ function loadSelectedSave() {
   duel = null;
   activeSkill = null;
   closeSaveLoad();
+  closeMapResetModal();
   writeLog(`${save.name} 불러오기 완료.`, "↩");
   render();
   renderSheet();
@@ -998,6 +1009,8 @@ cancelMapModal.addEventListener("click", closeMapResetModal);
 closeSaveLoadModal.addEventListener("click", closeSaveLoad);
 saveMapButton.addEventListener("click", requestSaveMap);
 loadMapButton.addEventListener("click", requestLoadMap);
+mapSaveButton.addEventListener("click", requestSaveMap);
+mapLoadButton.addEventListener("click", requestLoadMap);
 nameModal.addEventListener("submit", createNewSave);
 closeNameModal.addEventListener("click", closeNameInput);
 cancelNameModal.addEventListener("click", closeNameInput);
@@ -1011,3 +1024,5 @@ document.addEventListener("contextmenu", (event) => {
 render();
 renderSheet();
 renderDuel();
+writeLog("맵을 생성하거나 저장된 맵을 불러오세요.", "↻");
+openMapModal();

@@ -757,6 +757,11 @@ button:hover {
   margin-top: 12px;
 }
 
+.mapModal .modal-panel,
+#mapModal .modal-panel {
+  width: min(620px, 100%);
+}
+
 .map-form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -784,6 +789,32 @@ button:hover {
 .modal-panel menu {
   padding: 0;
   margin-top: 16px;
+}
+
+.map-modal-saves {
+  margin-top: 14px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #0b0b0b;
+  padding: 10px;
+}
+
+.map-modal-saves h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.compact-save-list {
+  max-height: 170px;
+  min-height: 92px;
+  margin-top: 0;
+}
+
+.map-save-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .save-panel {
