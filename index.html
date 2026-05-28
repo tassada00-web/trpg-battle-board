@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TRPG 전술 보드</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main class="app" aria-label="TRPG 전술 보드">
+      <section class="board-wrap" aria-label="배틀 맵">
+        <div class="board-frame">
+          <div id="board" class="board" aria-label="10 x 8 전술 격자"></div>
+        </div>
+      </section>
+
+      <aside id="detailBar" class="detail-bar" aria-label="유닛 상세 능력치">
+        <div class="empty-detail" id="emptyDetail">
+          <strong>유닛 선택</strong>
+          <p>말을 우클릭하면 상세 능력치가 표시됩니다.</p>
+        </div>
+
+        <form id="unitSheet" class="unit-sheet" hidden>
+          <header class="sheet-head">
+            <div>
+              <span id="sheetType" class="sheet-type">아군</span>
+              <input id="sheetName" class="sheet-name" type="text" aria-label="이름">
+            </div>
+            <button id="deleteUnit" class="danger" type="button">삭제</button>
+          </header>
+
+          <section class="vital-section" aria-label="체력과 스테미나">
+            <label>
+              체력
+              <span>
+                <input id="unitHp" type="number" min="0" max="999">
+                /
+                <input id="unitMaxHp" type="number" min="1" max="999">
+              </span>
+            </label>
+            <label>
+              스테미나
+              <span>
+                <input id="unitStamina" type="number" min="0" max="999">
+                /
+                <input id="unitMaxStamina" type="number" min="1" max="999">
+              </span>
+            </label>
+          </section>
+
+          <section aria-label="주능력치">
+            <h2>주능력치</h2>
+            <div id="primaryStats" class="primary-stats"></div>
+          </section>
+
+          <section aria-label="스킬">
+            <div class="section-title">
+              <h2>스킬</h2>
+              <button id="addSkill" type="button" aria-label="스킬 추가">+</button>
+            </div>
+            <div id="skillList" class="skill-list"></div>
+          </section>
+        </form>
+      </aside>
+
+      <section class="control-bar" aria-label="맵 조작">
+        <div class="legend" aria-label="말 종류">
+          <span><i class="dot player"></i>플레이어</span>
+          <span><i class="dot ally"></i>아군</span>
+          <span><i class="dot enemy"></i>적군</span>
+          <span><i class="box obstacle"></i>장애물</span>
+        </div>
+
+        <div class="add-tools" aria-label="말 추가">
+          <strong>추가:</strong>
+          <button type="button" data-add="ally">아군</button>
+          <button type="button" data-add="enemy">적군</button>
+          <button type="button" data-add="obstacle">장애물</button>
+        </div>
+
+        <div class="map-tools">
+          <button id="resetMap" type="button">맵 재설정</button>
+          <button id="restoreMap" type="button">맵 복귀</button>
+        </div>
+
+        <div class="log" aria-live="polite">
+          <span id="logIcon">⚔</span>
+          <p id="battleLog">배틀맵 [10 x 8] 생성 완료. 유닛은 드래그로 이동하고, 우클릭으로 상세 능력치를 봅니다.</p>
+        </div>
+      </section>
+    </main>
+
+    <script src="game.js"></script>
+  </body>
+</html>
