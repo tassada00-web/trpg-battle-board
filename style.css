@@ -90,8 +90,8 @@ button:hover {
     58px
   );
   display: grid;
-  grid-template-columns: repeat(10, var(--cell));
-  grid-template-rows: repeat(8, var(--cell));
+  grid-template-columns: repeat(var(--cols), var(--cell));
+  grid-template-rows: repeat(var(--rows), var(--cell));
   background: #1d1d2d;
   user-select: none;
   touch-action: none;
@@ -238,21 +238,65 @@ button:hover {
   line-height: 1.45;
 }
 
+.duel-card {
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #131313;
+  padding: 10px;
+}
+
+.duel-card + .duel-card {
+  margin-top: 10px;
+}
+
+.duel-card small {
+  color: var(--line);
+  display: block;
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.duel-card b {
+  color: var(--text);
+  display: block;
+  font-size: 18px;
+}
+
 .duel-units p {
   margin: 0;
 }
 
 .duel-stats {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 8px;
   margin-top: 12px;
 }
 
+.duel-side {
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #111;
+  padding: 10px;
+}
+
+.duel-side h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--line);
+}
+
+.duel-stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
 .duel-stat {
-  min-height: 42px;
-  padding: 0 8px;
+  min-height: 34px;
+  padding: 0 6px;
   background: #171717;
+  font-size: 13px;
 }
 
 .duel-stat.active {
@@ -267,7 +311,7 @@ button:hover {
 
 .duel-result {
   margin-top: 12px;
-  min-height: 126px;
+  min-height: 156px;
   border: 1px solid #333;
   border-radius: 6px;
   background: #050505;
@@ -294,6 +338,14 @@ button:hover {
 .duel-winner {
   margin-top: 4px;
   color: #ffcf75;
+  font-weight: 900;
+}
+
+.duel-diff {
+  border-top: 1px solid #333;
+  border-bottom: 1px solid #333;
+  padding: 8px 0;
+  color: var(--text);
   font-weight: 900;
 }
 
@@ -589,6 +641,74 @@ button:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.modal-panel {
+  width: min(460px, 100%);
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: #111;
+  padding: 16px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
+}
+
+.modal-panel header,
+.modal-panel menu {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.modal-panel h2,
+.modal-panel p,
+.modal-panel menu {
+  margin: 0;
+}
+
+.modal-panel p {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+.map-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.map-form-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.map-form-grid input {
+  min-height: 36px;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  background: #080808;
+  color: var(--text);
+  padding: 6px 8px;
+}
+
+.modal-panel menu {
+  padding: 0;
+  margin-top: 16px;
 }
 
 @media (max-width: 980px) {

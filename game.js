@@ -1,5 +1,5 @@
-const COLS = 10;
-const ROWS = 8;
+let cols = 10;
+let rows = 8;
 
 const board = document.querySelector("#board");
 const logText = document.querySelector("#battleLog");
@@ -19,6 +19,16 @@ const duelTitle = document.querySelector("#duelTitle");
 const duelUnits = document.querySelector("#duelUnits");
 const duelStats = document.querySelector("#duelStats");
 const duelResult = document.querySelector("#duelResult");
+const mapModal = document.querySelector("#mapModal");
+const closeMapModal = document.querySelector("#closeMapModal");
+const cancelMapModal = document.querySelector("#cancelMapModal");
+const mapInputs = {
+  cols: document.querySelector("#mapCols"),
+  rows: document.querySelector("#mapRows"),
+  allies: document.querySelector("#mapAllies"),
+  enemies: document.querySelector("#mapEnemies"),
+  obstacles: document.querySelector("#mapObstacles")
+};
 
 const inputs = {
   hp: document.querySelector("#unitHp"),
@@ -119,9 +129,13 @@ function clamp(value, min, max) {
 
 function render() {
   board.innerHTML = "";
+  board.style.setProperty("--cols", String(cols));
+  board.style.setProperty("--rows", String(rows));
+  board.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
+  board.style.gridTemplateRows = `repeat(${rows}, var(--cell))`;
 
-  for (let y = 0; y < ROWS; y += 1) {
-    for (let x = 0; x < COLS; x += 1) {
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
       const cell = document.createElement("div");
       cell.className = "cell";
       cell.dataset.x = String(x);
@@ -280,13 +294,17 @@ function endDrag(event) {
 
   const piece = getUnit(drag.id);
   const targetCell = document.elementFromPoint(event.clientX, event.clientY)?.closest(".cell");
+  const dropTarget = document.elementFromPoint(event.clientX, event.clientY);
+  const droppedOnSide = dropTarget?.closest("#duelBar, #detailBar");
 
   clearHighlights();
   drag.el.classList.remove("dragging");
   drag.el.style.left = "";
   drag.el.style.top = "";
 
-  if (piece && targetCell) {
+  if (piece && droppedOnSide) {
+    deleteDraggedUnit(piece);
+  } else if (piece && targetCell) {
     const x = Number(targetCell.dataset.x);
     const y = Number(targetCell.dataset.y);
     resolveDrop(piece, x, y);
@@ -475,8 +493,8 @@ function addUnit(type) {
 }
 
 function findEmptyCell() {
-  for (let y = 0; y < ROWS; y += 1) {
-    for (let x = 0; x < COLS; x += 1) {
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
       if (!getUnitAt(x, y)) return { x, y };
     }
   }
@@ -489,16 +507,12 @@ function writeLog(text, icon = "⚔") {
 }
 
 function resetToBlank() {
-  units = [];
-  selectedUnitId = null;
-  duel = null;
-  writeLog("빈 배틀맵으로 재설정했습니다.", "↻");
-  render();
-  renderSheet();
-  renderDuel();
+  openMapModal();
 }
 
 function restoreInitial() {
+  cols = 10;
+  rows = 8;
   units = structuredClone(initialUnits);
   selectedUnitId = null;
   duel = null;
@@ -524,7 +538,8 @@ function prepareDuel(attacker, defender) {
   duel = {
     attackerId: attacker.id,
     defenderId: defender.id,
-    activeStat: null,
+    attackerStat: null,
+    defenderStat: null,
     result: null
   };
   renderDuel();
@@ -538,43 +553,63 @@ function renderDuel() {
   duelTitle.textContent = ready ? "전투 상황" : "대기 중";
   duelUnits.innerHTML = ready
     ? `
-      <p><b>${attacker.stats.name}</b> vs <b>${defender.stats.name}</b></p>
-      <p>능력치 버튼을 누르면 d20 + 기본 + 보너스로 판정합니다.</p>
+      <div class="duel-card"><small>공격자</small><b>${attacker.stats.name}</b></div>
+      <div class="duel-card"><small>방어자</small><b>${defender.stats.name}</b></div>
     `
     : `<p>적 유닛 위로 드래그하면 판정 대결이 준비됩니다.</p>`;
 
-  duelStats.innerHTML = PRIMARY_STATS.map(([key, label]) => `
-    <button class="duel-stat${duel?.activeStat === key ? " active" : ""}" type="button" data-duel-stat="${key}" ${ready ? "" : "disabled"}>
+  const statButtons = (side, activeKey) => PRIMARY_STATS.map(([key, label]) => `
+    <button class="duel-stat${activeKey === key ? " active" : ""}" type="button" data-duel-side="${side}" data-duel-stat="${key}" ${ready ? "" : "disabled"}>
       ${label}
     </button>
   `).join("");
 
+  duelStats.innerHTML = `
+    <section class="duel-side">
+      <h3>공격자 능력치</h3>
+      <div class="duel-stat-grid">${statButtons("attacker", duel?.attackerStat)}</div>
+    </section>
+    <section class="duel-side">
+      <h3>방어자 능력치</h3>
+      <div class="duel-stat-grid">${statButtons("defender", duel?.defenderStat)}</div>
+    </section>
+  `;
+
   duelStats.querySelectorAll("[data-duel-stat]").forEach((button) => {
-    button.addEventListener("click", () => toggleDuelStat(button.dataset.duelStat));
+    button.addEventListener("click", () => toggleDuelStat(button.dataset.duelSide, button.dataset.duelStat));
   });
 
   if (!duel?.result) {
-    duelResult.innerHTML = `<span>능력치를 선택하면 양쪽 주사위를 굴립니다.</span>`;
+    duelResult.innerHTML = `<span>공격자와 방어자 능력치를 각각 선택하세요.</span>`;
     return;
   }
 
-  const statLabel = PRIMARY_STATS.find(([key]) => key === duel.result.stat)?.[1] ?? "판정";
+  const attackerLabel = PRIMARY_STATS.find(([key]) => key === duel.result.attackerStat)?.[1] ?? "공격";
+  const defenderLabel = PRIMARY_STATS.find(([key]) => key === duel.result.defenderStat)?.[1] ?? "방어";
   duelResult.innerHTML = `
-    <span>${statLabel} 판정</span>
-    <div class="duel-roll"><span>${attacker.stats.name}</span><b>${duel.result.attackerTotal}</b></div>
-    <div class="duel-roll"><span>${defender.stats.name}</span><b>${duel.result.defenderTotal}</b></div>
+    <div class="duel-roll"><span>공격자 ${attackerLabel}</span><b>${duel.result.attackerTotal}</b></div>
+    <div class="duel-diff">결과값: 방어자 - 공격자 = ${duel.result.diff}</div>
+    <div class="duel-roll"><span>방어자 ${defenderLabel}</span><b>${duel.result.defenderTotal}</b></div>
     <div class="duel-winner">${duel.result.winner}</div>
   `;
 }
 
-function toggleDuelStat(stat) {
+function toggleDuelStat(side, stat) {
   const attacker = getUnit(duel?.attackerId);
   const defender = getUnit(duel?.defenderId);
   if (!attacker || !defender) return;
 
-  if (duel.activeStat === stat) {
-    duel.activeStat = null;
+  const key = side === "attacker" ? "attackerStat" : "defenderStat";
+  if (duel[key] === stat) {
+    duel[key] = null;
     duel.result = null;
+    renderDuel();
+    return;
+  }
+
+  duel[key] = stat;
+  duel.result = null;
+  if (!duel.attackerStat || !duel.defenderStat) {
     renderDuel();
     return;
   }
@@ -582,19 +617,21 @@ function toggleDuelStat(stat) {
   ensureUnitShape(attacker);
   ensureUnitShape(defender);
 
-  const attackerRoll = rollD20();
-  const defenderRoll = rollD20();
-  const attackerTotal = attackerRoll + attacker.stats.primary[stat] + attacker.stats.bonus[stat];
-  const defenderTotal = defenderRoll + defender.stats.primary[stat] + defender.stats.bonus[stat];
+  const attackerRoll = rollDie(attacker.stats.primary[duel.attackerStat]);
+  const defenderRoll = rollDie(defender.stats.primary[duel.defenderStat]);
+  const attackerTotal = attackerRoll + attacker.stats.bonus[duel.attackerStat];
+  const defenderTotal = defenderRoll + defender.stats.bonus[duel.defenderStat];
+  const diff = defenderTotal - attackerTotal;
 
-  duel.activeStat = stat;
   duel.result = {
-    stat,
+    attackerStat: duel.attackerStat,
+    defenderStat: duel.defenderStat,
     attackerTotal,
     defenderTotal,
-    winner: attackerTotal > defenderTotal
+    diff,
+    winner: diff < 0
       ? `${attacker.stats.name} 우세`
-      : defenderTotal > attackerTotal
+      : diff > 0
         ? `${defender.stats.name} 우세`
         : "동률"
   };
@@ -602,8 +639,95 @@ function toggleDuelStat(stat) {
   renderDuel();
 }
 
-function rollD20() {
-  return Math.floor(Math.random() * 20) + 1;
+function rollDie(sides) {
+  return Math.floor(Math.random() * Math.max(1, Number(sides) || 1)) + 1;
+}
+
+function deleteDraggedUnit(piece) {
+  if (piece.type === "player") {
+    writeLog("플레이어 말은 삭제할 수 없습니다.", "!");
+    return;
+  }
+
+  units = units.filter((item) => item.id !== piece.id);
+  if (selectedUnitId === piece.id) selectedUnitId = null;
+  if (duel?.attackerId === piece.id || duel?.defenderId === piece.id) duel = null;
+  writeLog(`${piece.stats.name} 삭제 완료.`, "×");
+}
+
+function openMapModal() {
+  mapInputs.cols.value = String(cols);
+  mapInputs.rows.value = String(rows);
+  mapInputs.allies.value = "3";
+  mapInputs.enemies.value = "4";
+  mapInputs.obstacles.value = "5";
+  mapModal.hidden = false;
+}
+
+function closeMapResetModal() {
+  mapModal.hidden = true;
+}
+
+function buildMapFromForm(event) {
+  event.preventDefault();
+  const nextCols = clamp(Number(mapInputs.cols.value) || 10, 4, 30);
+  const nextRows = clamp(Number(mapInputs.rows.value) || 8, 4, 30);
+  const allyCount = clamp(Number(mapInputs.allies.value) || 0, 0, nextCols * nextRows);
+  const enemyCount = clamp(Number(mapInputs.enemies.value) || 0, 0, nextCols * nextRows);
+  const obstacleCount = clamp(Number(mapInputs.obstacles.value) || 0, 0, nextCols * nextRows);
+
+  cols = nextCols;
+  rows = nextRows;
+  units = generateMapUnits(allyCount, enemyCount, obstacleCount);
+  selectedUnitId = null;
+  duel = null;
+  closeMapResetModal();
+  writeLog(`배틀맵 [${cols} x ${rows}] 생성 완료.`, "↻");
+  render();
+  renderSheet();
+  renderDuel();
+}
+
+function generateMapUnits(allyCount, enemyCount, obstacleCount) {
+  const generated = [];
+  const occupied = new Set();
+  const put = (piece) => {
+    occupied.add(`${piece.x},${piece.y}`);
+    generated.push(piece);
+  };
+  const nextEmpty = (preferRight = false) => {
+    const xRange = [...Array(cols).keys()];
+    const yRange = [...Array(rows).keys()];
+    if (preferRight) xRange.reverse();
+    for (const x of xRange) {
+      for (const y of yRange) {
+        if (!occupied.has(`${x},${y}`)) return { x, y };
+      }
+    }
+    return null;
+  };
+
+  put(unit("player", "P", 0, Math.floor(rows / 2), "플레이어", { hp: 30, maxHp: 30, stamina: 14, maxStamina: 14, attack: 8, defense: 3, move: 4 }));
+
+  for (let i = 1; i <= allyCount; i += 1) {
+    const spot = nextEmpty(false);
+    if (!spot) break;
+    put(unit("ally", String(i), spot.x, spot.y, `아군 ${i}`, { hp: 18, maxHp: 18, stamina: 12, maxStamina: 12, attack: 5, defense: 1, move: 4 }));
+  }
+
+  for (let i = 1; i <= enemyCount; i += 1) {
+    const spot = nextEmpty(true);
+    if (!spot) break;
+    put(unit("enemy", String(i), spot.x, spot.y, `적군 ${i}`, { hp: 20, maxHp: 20, stamina: 10, maxStamina: 10, attack: 6, defense: 2, move: 3 }));
+  }
+
+  for (let i = 0; i < obstacleCount; i += 1) {
+    const spot = nextEmpty(i % 2 === 0);
+    if (!spot) break;
+    put(obstacle(spot.x, spot.y));
+  }
+
+  return generated;
 }
 
 board.addEventListener("contextmenu", (event) => {
@@ -622,6 +746,9 @@ addSkillButton.addEventListener("click", addSkill);
 deleteUnit.addEventListener("click", removeSelectedUnit);
 resetMap.addEventListener("click", resetToBlank);
 restoreMap.addEventListener("click", restoreInitial);
+mapModal.addEventListener("submit", buildMapFromForm);
+closeMapModal.addEventListener("click", closeMapResetModal);
+cancelMapModal.addEventListener("click", closeMapResetModal);
 
 document.addEventListener("contextmenu", (event) => {
   if (!event.target.closest(".piece")) event.preventDefault();

@@ -18,7 +18,7 @@
         </div>
         <div id="duelStats" class="duel-stats"></div>
         <div id="duelResult" class="duel-result">
-          <span>능력치를 선택하면 양쪽 주사위를 굴립니다.</span>
+          <span>공격자와 방어자의 능력치를 각각 선택하세요.</span>
         </div>
       </aside>
 
@@ -103,6 +103,42 @@
         </div>
       </section>
     </main>
+
+    <form id="mapModal" class="modal" aria-label="맵 재설정" hidden>
+      <section class="modal-panel">
+        <header>
+          <h2>맵 재설정</h2>
+          <button id="closeMapModal" type="button" aria-label="닫기">×</button>
+        </header>
+        <div class="map-form-grid">
+          <label>
+            가로 값
+            <input id="mapCols" type="number" min="4" max="30" value="10">
+          </label>
+          <label>
+            세로 값
+            <input id="mapRows" type="number" min="4" max="30" value="8">
+          </label>
+          <label>
+            아군 말 갯수
+            <input id="mapAllies" type="number" min="0" max="99" value="3">
+          </label>
+          <label>
+            적군 말 갯수
+            <input id="mapEnemies" type="number" min="0" max="99" value="4">
+          </label>
+          <label>
+            장애물 값
+            <input id="mapObstacles" type="number" min="0" max="99" value="5">
+          </label>
+        </div>
+        <p>플레이어 말판은 항상 1개 생성됩니다.</p>
+        <menu>
+          <button id="cancelMapModal" type="button">취소</button>
+          <button type="submit">생성</button>
+        </menu>
+      </section>
+    </form>
 
     <script src="game.js"></script>
   </body>
