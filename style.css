@@ -23,7 +23,7 @@
 
 html,
 body {
-  min-height: 100%;
+  height: 100%;
 }
 
 body {
@@ -31,7 +31,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 button,
@@ -44,7 +44,7 @@ button {
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: #3b3b3b;
   color: var(--text);
-  min-height: 36px;
+  min-height: 32px;
   padding: 0 14px;
   border-radius: 4px;
   cursor: pointer;
@@ -56,10 +56,10 @@ button:hover {
 }
 
 .app {
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-columns: 330px minmax(0, 1fr) 360px;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) 92px;
   gap: 10px;
   padding: 10px;
 }
@@ -196,26 +196,28 @@ button:hover {
 
 .detail-bar {
   min-height: 0;
+  max-height: 100%;
   border: 2px solid var(--line);
   border-radius: 10px;
   background: #0b0b0b;
   padding: 14px;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .duel-bar {
   min-height: 0;
+  max-height: 100%;
   border: 2px solid var(--line);
   border-radius: 10px;
   background: #0b0b0b;
-  padding: 14px;
-  overflow: auto;
+  padding: 12px;
+  overflow: hidden;
 }
 
 .duel-bar header {
   display: grid;
-  gap: 6px;
-  margin-bottom: 12px;
+  gap: 2px;
+  margin-bottom: 8px;
 }
 
 .duel-bar header span {
@@ -225,14 +227,15 @@ button:hover {
 }
 
 .duel-bar header strong {
-  font-size: 22px;
+  font-size: 16px;
+  line-height: 1.15;
 }
 
 .duel-units {
   border: 1px solid #333;
   border-radius: 6px;
   background: #111;
-  padding: 12px;
+  padding: 8px;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.45;
@@ -242,24 +245,26 @@ button:hover {
   border: 1px solid #333;
   border-radius: 6px;
   background: #131313;
-  padding: 10px;
+  padding: 7px 8px;
 }
 
 .duel-card + .duel-card {
-  margin-top: 10px;
+  margin-top: 6px;
 }
 
 .duel-card small {
   color: var(--line);
   display: block;
   font-weight: 900;
-  margin-bottom: 4px;
+  font-size: 11px;
+  margin-bottom: 2px;
 }
 
 .duel-card b {
   color: var(--text);
   display: block;
-  font-size: 18px;
+  font-size: 14px;
+  line-height: 1.2;
 }
 
 .duel-units p {
@@ -269,20 +274,20 @@ button:hover {
 .duel-stats {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .duel-side {
   border: 1px solid #333;
   border-radius: 6px;
   background: #111;
-  padding: 10px;
+  padding: 8px;
 }
 
 .duel-side h3 {
-  margin: 0 0 8px;
-  font-size: 14px;
+  margin: 0 0 6px;
+  font-size: 12px;
   color: var(--line);
 }
 
@@ -293,7 +298,7 @@ button:hover {
 }
 
 .duel-stat {
-  min-height: 34px;
+  min-height: 29px;
   padding: 0 6px;
   background: #171717;
   font-size: 13px;
@@ -310,12 +315,12 @@ button:hover {
 }
 
 .duel-result {
-  margin-top: 12px;
-  min-height: 156px;
+  margin-top: 8px;
+  min-height: 116px;
   border: 1px solid #333;
   border-radius: 6px;
   background: #050505;
-  padding: 12px;
+  padding: 8px;
   display: grid;
   align-content: center;
   gap: 8px;
@@ -370,7 +375,10 @@ button:hover {
 
 .unit-sheet {
   display: grid;
-  gap: 16px;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
 }
 
 .sheet-head,
@@ -408,12 +416,12 @@ button:hover {
   border: 1px solid #333;
   border-radius: 6px;
   background: #111;
-  padding: 12px;
+  padding: 10px;
 }
 
 .unit-sheet h2 {
   margin: 0 0 10px;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .vital-section {
@@ -507,6 +515,9 @@ button:hover {
 .skill-list {
   display: grid;
   gap: 10px;
+  max-height: 100%;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .skill-card {
@@ -579,10 +590,11 @@ button:hover {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--panel);
-  padding: 12px 18px;
+  min-height: 0;
+  padding: 8px 16px;
   display: grid;
   grid-template-columns: 1fr auto auto;
-  gap: 12px 22px;
+  gap: 8px 22px;
   align-items: center;
 }
 
@@ -658,7 +670,7 @@ button:hover {
 
 .log {
   grid-column: 1 / -1;
-  min-height: 38px;
+  min-height: 32px;
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
@@ -666,7 +678,7 @@ button:hover {
   background: #050505;
   border-left: 5px solid var(--line);
   border-radius: 4px;
-  padding: 8px 12px;
+  padding: 6px 12px;
   color: #ff9f1a;
 }
 
