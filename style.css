@@ -519,6 +519,11 @@ button:hover {
   cursor: grab;
 }
 
+.skill-card.active-skill {
+  border-color: var(--line);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
 .skill-card.dragging-skill {
   opacity: 0.45;
 }
@@ -530,6 +535,35 @@ button:hover {
 .skill-card textarea {
   min-height: 68px;
   resize: vertical;
+}
+
+.skill-stat-row {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.skill-stat-row select,
+.webhook-field input {
+  min-height: 34px;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  background: #080808;
+  color: var(--text);
+  padding: 6px 8px;
+}
+
+.webhook-field {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .skill-empty {

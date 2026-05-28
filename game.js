@@ -19,6 +19,7 @@ const duelTitle = document.querySelector("#duelTitle");
 const duelUnits = document.querySelector("#duelUnits");
 const duelStats = document.querySelector("#duelStats");
 const duelResult = document.querySelector("#duelResult");
+const discordWebhook = document.querySelector("#discordWebhook");
 const mapModal = document.querySelector("#mapModal");
 const closeMapModal = document.querySelector("#closeMapModal");
 const cancelMapModal = document.querySelector("#cancelMapModal");
@@ -85,7 +86,9 @@ let duel = null;
 let idCounter = 100;
 let selectedSaveId = null;
 let pendingConfirm = null;
+let activeSkill = null;
 const SAVE_KEY = "trpg-battle-board-saves";
+const WEBHOOK_KEY = "trpg-battle-board-discord-webhook";
 
 function unit(type, label, x, y, name, overrides = {}) {
   return {
@@ -223,6 +226,12 @@ function ensureUnitShape(piece) {
     piece.stats.bonus[key] ??= 0;
   });
   piece.stats.skills ??= [];
+  piece.stats.skills.forEach((skill) => {
+    skill.id ??= crypto.randomUUID();
+    skill.name ??= "이름 없는 스킬";
+    skill.stat ??= "str";
+    skill.desc ??= "";
+  });
 }
 
 function renderSkills(piece) {
@@ -232,9 +241,19 @@ function renderSkills(piece) {
     return;
   }
 
+  const statOptions = (selected) => PRIMARY_STATS.map(([key, label]) => `
+    <option value="${key}" ${selected === key ? "selected" : ""}>${label}</option>
+  `).join("");
+
   skillList.innerHTML = piece.stats.skills.map((skill, index) => `
-    <article class="skill-card" draggable="true" data-skill="${index}">
+    <article class="skill-card${isActiveSkill(piece, index) ? " active-skill" : ""}" draggable="true" data-skill="${index}">
       <input type="text" data-skill-name="${index}" value="${escapeHtml(skill.name)}" aria-label="스킬 이름">
+      <label class="skill-stat-row">
+        스킬판정
+        <select data-skill-stat="${index}" aria-label="스킬판정 능력치">
+          ${statOptions(skill.stat)}
+        </select>
+      </label>
       <textarea data-skill-desc="${index}" aria-label="스킬 설명">${escapeHtml(skill.desc)}</textarea>
     </article>
   `).join("");
@@ -243,6 +262,15 @@ function renderSkills(piece) {
     card.addEventListener("dragstart", startSkillDrag);
     card.addEventListener("dragend", endSkillDrag);
   });
+
+  skillList.querySelectorAll("[data-skill-stat]").forEach((select) => {
+    select.addEventListener("change", () => setActiveSkill(piece.id, Number(select.dataset.skillStat), select.value));
+    select.addEventListener("click", () => setActiveSkill(piece.id, Number(select.dataset.skillStat), select.value));
+  });
+}
+
+function isActiveSkill(piece, index) {
+  return activeSkill?.unitId === piece.id && activeSkill?.index === index;
 }
 
 function selectUnit(id) {
@@ -427,6 +455,11 @@ function syncSheetToUnit() {
     if (piece.stats.skills[index]) piece.stats.skills[index].name = input.value.trim() || "이름 없는 스킬";
   });
 
+  skillList.querySelectorAll("[data-skill-stat]").forEach((input) => {
+    const index = Number(input.dataset.skillStat);
+    if (piece.stats.skills[index]) piece.stats.skills[index].stat = input.value;
+  });
+
   skillList.querySelectorAll("[data-skill-desc]").forEach((input) => {
     const index = Number(input.dataset.skillDesc);
     if (piece.stats.skills[index]) piece.stats.skills[index].desc = input.value;
@@ -454,6 +487,7 @@ function addSkill() {
   piece.stats.skills.push({
     id: crypto.randomUUID(),
     name: `스킬 ${piece.stats.skills.length + 1}`,
+    stat: "str",
     desc: ""
   });
   renderSheet();
@@ -539,11 +573,16 @@ document.querySelectorAll("[data-add]").forEach((button) => {
   button.addEventListener("click", () => addUnit(button.dataset.add));
 });
 
+discordWebhook.value = localStorage.getItem(WEBHOOK_KEY) || "";
+discordWebhook.addEventListener("input", () => {
+  localStorage.setItem(WEBHOOK_KEY, discordWebhook.value.trim());
+});
+
 function prepareDuel(attacker, defender) {
   duel = {
     attackerId: attacker.id,
     defenderId: defender.id,
-    attackerStat: null,
+    attackerStat: activeSkill?.unitId === attacker.id ? activeSkill.stat : null,
     defenderStat: null,
     result: null
   };
@@ -619,6 +658,15 @@ function toggleDuelStat(side, stat) {
     return;
   }
 
+  rollDuel();
+  renderDuel();
+}
+
+function rollDuel() {
+  const attacker = getUnit(duel?.attackerId);
+  const defender = getUnit(duel?.defenderId);
+  if (!attacker || !defender || !duel.attackerStat || !duel.defenderStat) return;
+
   ensureUnitShape(attacker);
   ensureUnitShape(defender);
 
@@ -641,11 +689,64 @@ function toggleDuelStat(side, stat) {
         : "동률"
   };
 
-  renderDuel();
+  const usedSkill = getActiveSkillName();
+  clearActiveSkill();
+  sendDiscordRoll(attacker, defender, duel.result, usedSkill);
 }
 
 function rollDie(sides) {
   return Math.floor(Math.random() * Math.max(1, Number(sides) || 1)) + 1;
+}
+
+function setActiveSkill(unitId, index, stat) {
+  const piece = getUnit(unitId);
+  if (!piece?.stats.skills[index]) return;
+
+  syncSheetToUnit();
+  activeSkill = { unitId, index, stat };
+
+  if (duel?.attackerId === unitId) {
+    duel.attackerStat = stat;
+    duel.result = null;
+    if (duel.defenderStat) rollDuel();
+    renderDuel();
+  }
+
+  renderSheet();
+}
+
+function clearActiveSkill() {
+  activeSkill = null;
+  renderSheet();
+}
+
+function getActiveSkillName() {
+  const piece = getUnit(activeSkill?.unitId);
+  return piece?.stats.skills[activeSkill.index]?.name ?? "";
+}
+
+function sendDiscordRoll(attacker, defender, result, skillName) {
+  const webhookUrl = discordWebhook.value.trim();
+  if (!webhookUrl) return;
+
+  const attackerLabel = PRIMARY_STATS.find(([key]) => key === result.attackerStat)?.[1] ?? result.attackerStat;
+  const defenderLabel = PRIMARY_STATS.find(([key]) => key === result.defenderStat)?.[1] ?? result.defenderStat;
+  const content = [
+    "**전투 판정 결과**",
+    skillName ? `스킬: **${skillName}**` : "",
+    `공격자 **${attacker.stats.name}** [${attackerLabel}]: **${result.attackerTotal}**`,
+    `방어자 **${defender.stats.name}** [${defenderLabel}]: **${result.defenderTotal}**`,
+    `결과값(방어자 - 공격자): **${result.diff}**`,
+    `판정: **${result.winner}**`
+  ].filter(Boolean).join("\n");
+
+  fetch(webhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content, username: "TRPG Battle Board" })
+  }).catch(() => {
+    writeLog("디스코드 출력에 실패했습니다. 웹훅 URL을 확인하세요.", "!");
+  });
 }
 
 function deleteDraggedUnit(piece) {
@@ -686,6 +787,7 @@ function buildMapFromForm(event) {
   units = generateMapUnits(allyCount, enemyCount, obstacleCount);
   selectedUnitId = null;
   duel = null;
+  activeSkill = null;
   closeMapResetModal();
   writeLog(`배틀맵 [${cols} x ${rows}] 생성 완료.`, "↻");
   render();
@@ -801,6 +903,7 @@ function loadSelectedSave() {
   units = structuredClone(save.units);
   selectedUnitId = null;
   duel = null;
+  activeSkill = null;
   closeSaveLoad();
   writeLog(`${save.name} 불러오기 완료.`, "↩");
   render();
