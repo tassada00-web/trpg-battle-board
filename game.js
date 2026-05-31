@@ -23,6 +23,7 @@ const discordWebhook = document.querySelector("#discordWebhook");
 const mapModal = document.querySelector("#mapModal");
 const closeMapModal = document.querySelector("#closeMapModal");
 const cancelMapModal = document.querySelector("#cancelMapModal");
+const editMapOnly = document.querySelector("#editMapOnly");
 const saveLoadModal = document.querySelector("#saveLoadModal");
 const closeSaveLoadModal = document.querySelector("#closeSaveLoadModal");
 const saveList = document.querySelector("#saveList");
@@ -45,7 +46,9 @@ const mapInputs = {
   rows: document.querySelector("#mapRows"),
   allies: document.querySelector("#mapAllies"),
   enemies: document.querySelector("#mapEnemies"),
-  obstacles: document.querySelector("#mapObstacles")
+  obstacles: document.querySelector("#mapObstacles"),
+  addAllies: document.querySelector("#mapAddAllies"),
+  addEnemies: document.querySelector("#mapAddEnemies")
 };
 
 const inputs = {
@@ -764,6 +767,8 @@ function openMapModal() {
   mapInputs.allies.value = "3";
   mapInputs.enemies.value = "4";
   mapInputs.obstacles.value = "5";
+  mapInputs.addAllies.value = "0";
+  mapInputs.addEnemies.value = "0";
   renderSaveList();
   mapModal.hidden = false;
 }
@@ -788,6 +793,94 @@ function buildMapFromForm(event) {
   activeSkill = null;
   closeMapResetModal();
   writeLog(`배틀맵 [${cols} x ${rows}] 생성 완료.`, "↻");
+  render();
+  renderSheet();
+  renderDuel();
+}
+
+function readMapFormValues() {
+  const nextCols = clamp(Number(mapInputs.cols.value) || 10, 4, 30);
+  const nextRows = clamp(Number(mapInputs.rows.value) || 8, 4, 30);
+  const maxCells = nextCols * nextRows;
+
+  return {
+    nextCols,
+    nextRows,
+    obstacleCount: clamp(Number(mapInputs.obstacles.value) || 0, 0, maxCells),
+    addAllies: clamp(Number(mapInputs.addAllies.value) || 0, 0, maxCells),
+    addEnemies: clamp(Number(mapInputs.addEnemies.value) || 0, 0, maxCells)
+  };
+}
+
+function applyMapOnlyChanges() {
+  const { nextCols, nextRows, obstacleCount, addAllies, addEnemies } = readMapFormValues();
+  cols = nextCols;
+  rows = nextRows;
+
+  const occupied = new Set();
+  const keptUnits = units
+    .filter((piece) => piece.type !== "obstacle")
+    .sort((a, b) => (a.type === "player" ? -1 : 0) - (b.type === "player" ? -1 : 0));
+
+  const findSpot = (preferRight = false) => {
+    const xRange = [...Array(cols).keys()];
+    const yRange = [...Array(rows).keys()];
+    if (preferRight) xRange.reverse();
+    for (const x of xRange) {
+      for (const y of yRange) {
+        if (!occupied.has(`${x},${y}`)) return { x, y };
+      }
+    }
+    return null;
+  };
+
+  const placeExisting = (piece) => {
+    const wanted = {
+      x: clamp(piece.x, 0, cols - 1),
+      y: clamp(piece.y, 0, rows - 1)
+    };
+    const key = `${wanted.x},${wanted.y}`;
+    const spot = occupied.has(key) ? findSpot(piece.type === "enemy") : wanted;
+    if (!spot) return false;
+    piece.x = spot.x;
+    piece.y = spot.y;
+    occupied.add(`${piece.x},${piece.y}`);
+    return true;
+  };
+
+  if (!keptUnits.some((piece) => piece.type === "player")) {
+    keptUnits.unshift(unit("player", "P", 0, Math.floor(rows / 2), "플레이어", { hp: 30, maxHp: 30, stamina: 14, maxStamina: 14 }));
+  }
+
+  const nextUnits = keptUnits.filter(placeExisting);
+  const addPiece = (type) => {
+    const spot = findSpot(type === "enemy");
+    if (!spot) return false;
+    const sameTypeCount = nextUnits.filter((piece) => piece.type === type).length + 1;
+    const label = String(sameTypeCount);
+    const name = type === "ally" ? `아군 ${sameTypeCount}` : `적군 ${sameTypeCount}`;
+    const piece = unit(type, label, spot.x, spot.y, name, {});
+    occupied.add(`${spot.x},${spot.y}`);
+    nextUnits.push(piece);
+    return true;
+  };
+
+  for (let i = 0; i < addAllies; i += 1) addPiece("ally");
+  for (let i = 0; i < addEnemies; i += 1) addPiece("enemy");
+
+  for (let i = 0; i < obstacleCount; i += 1) {
+    const spot = findSpot(i % 2 === 0);
+    if (!spot) break;
+    occupied.add(`${spot.x},${spot.y}`);
+    nextUnits.push(obstacle(spot.x, spot.y));
+  }
+
+  units = nextUnits;
+  selectedUnitId = selectedUnitId && getUnit(selectedUnitId) ? selectedUnitId : null;
+  duel = null;
+  activeSkill = null;
+  closeMapResetModal();
+  writeLog(`맵만 수정 완료. [${cols} x ${rows}], 장애물 ${units.filter((piece) => piece.type === "obstacle").length}개`, "↻");
   render();
   renderSheet();
   renderDuel();
@@ -1006,6 +1099,7 @@ saveLoadMap.addEventListener("click", openSaveLoadModal);
 mapModal.addEventListener("submit", buildMapFromForm);
 closeMapModal.addEventListener("click", closeMapResetModal);
 cancelMapModal.addEventListener("click", closeMapResetModal);
+editMapOnly.addEventListener("click", applyMapOnlyChanges);
 closeSaveLoadModal.addEventListener("click", closeSaveLoad);
 saveMapButton.addEventListener("click", requestSaveMap);
 loadMapButton.addEventListener("click", requestLoadMap);
