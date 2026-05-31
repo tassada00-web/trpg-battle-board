@@ -98,6 +98,7 @@
 
         <div class="map-tools">
           <button id="resetMap" type="button">맵 재설정</button>
+          <button id="editMap" type="button">맵만 수정</button>
           <button id="saveLoadMap" type="button">맵 저장/불러오기</button>
         </div>
 
@@ -135,16 +136,8 @@
             장애물 값
             <input id="mapObstacles" type="number" min="0" max="99" value="5">
           </label>
-          <label>
-            추가 아군 말
-            <input id="mapAddAllies" type="number" min="0" max="99" value="0">
-          </label>
-          <label>
-            추가 적군 말
-            <input id="mapAddEnemies" type="number" min="0" max="99" value="0">
-          </label>
         </div>
-        <p>생성은 말 정보를 새로 만들고, 맵만 수정은 기존 말 정보를 유지합니다.</p>
+        <p>플레이어 말판은 항상 1개 생성됩니다.</p>
         <div class="map-modal-saves">
           <h3>저장된 맵</h3>
           <div id="mapSaveList" class="save-list compact-save-list" aria-label="맵 재설정 저장 기록"></div>
@@ -155,8 +148,43 @@
         </div>
         <menu>
           <button id="cancelMapModal" type="button">취소</button>
-          <button id="editMapOnly" type="button">맵만 수정</button>
           <button type="submit">생성</button>
+        </menu>
+      </section>
+    </form>
+
+    <form id="editMapModal" class="modal" aria-label="맵만 수정" hidden>
+      <section class="modal-panel">
+        <header>
+          <h2>맵만 수정</h2>
+          <button id="closeEditMapModal" type="button" aria-label="닫기">×</button>
+        </header>
+        <div class="map-form-grid">
+          <label>
+            가로 값
+            <input id="editMapCols" type="number" min="4" max="30" value="10">
+          </label>
+          <label>
+            세로 값
+            <input id="editMapRows" type="number" min="4" max="30" value="8">
+          </label>
+          <label>
+            장애물 값
+            <input id="editMapObstacles" type="number" min="0" max="99" value="5">
+          </label>
+          <label>
+            추가 아군 말
+            <input id="editMapAddAllies" type="number" min="0" max="99" value="0">
+          </label>
+          <label>
+            추가 적군 말
+            <input id="editMapAddEnemies" type="number" min="0" max="99" value="0">
+          </label>
+        </div>
+        <p>기존 말의 이름, 체력, 스킬, 능력치는 유지하고 맵과 장애물만 바꿉니다.</p>
+        <menu>
+          <button id="cancelEditMapModal" type="button">취소</button>
+          <button type="submit">수정</button>
         </menu>
       </section>
     </form>

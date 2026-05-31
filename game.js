@@ -14,6 +14,7 @@ const skillList = document.querySelector("#skillList");
 const addSkillButton = document.querySelector("#addSkill");
 const deleteUnit = document.querySelector("#deleteUnit");
 const resetMap = document.querySelector("#resetMap");
+const editMap = document.querySelector("#editMap");
 const saveLoadMap = document.querySelector("#saveLoadMap");
 const duelTitle = document.querySelector("#duelTitle");
 const duelUnits = document.querySelector("#duelUnits");
@@ -23,7 +24,9 @@ const discordWebhook = document.querySelector("#discordWebhook");
 const mapModal = document.querySelector("#mapModal");
 const closeMapModal = document.querySelector("#closeMapModal");
 const cancelMapModal = document.querySelector("#cancelMapModal");
-const editMapOnly = document.querySelector("#editMapOnly");
+const editMapModal = document.querySelector("#editMapModal");
+const closeEditMapModal = document.querySelector("#closeEditMapModal");
+const cancelEditMapModal = document.querySelector("#cancelEditMapModal");
 const saveLoadModal = document.querySelector("#saveLoadModal");
 const closeSaveLoadModal = document.querySelector("#closeSaveLoadModal");
 const saveList = document.querySelector("#saveList");
@@ -46,9 +49,15 @@ const mapInputs = {
   rows: document.querySelector("#mapRows"),
   allies: document.querySelector("#mapAllies"),
   enemies: document.querySelector("#mapEnemies"),
-  obstacles: document.querySelector("#mapObstacles"),
-  addAllies: document.querySelector("#mapAddAllies"),
-  addEnemies: document.querySelector("#mapAddEnemies")
+  obstacles: document.querySelector("#mapObstacles")
+};
+
+const editMapInputs = {
+  cols: document.querySelector("#editMapCols"),
+  rows: document.querySelector("#editMapRows"),
+  obstacles: document.querySelector("#editMapObstacles"),
+  addAllies: document.querySelector("#editMapAddAllies"),
+  addEnemies: document.querySelector("#editMapAddEnemies")
 };
 
 const inputs = {
@@ -767,14 +776,25 @@ function openMapModal() {
   mapInputs.allies.value = "3";
   mapInputs.enemies.value = "4";
   mapInputs.obstacles.value = "5";
-  mapInputs.addAllies.value = "0";
-  mapInputs.addEnemies.value = "0";
   renderSaveList();
   mapModal.hidden = false;
 }
 
 function closeMapResetModal() {
   mapModal.hidden = true;
+}
+
+function openEditMapModal() {
+  editMapInputs.cols.value = String(cols);
+  editMapInputs.rows.value = String(rows);
+  editMapInputs.obstacles.value = String(units.filter((piece) => piece.type === "obstacle").length);
+  editMapInputs.addAllies.value = "0";
+  editMapInputs.addEnemies.value = "0";
+  editMapModal.hidden = false;
+}
+
+function closeEditMap() {
+  editMapModal.hidden = true;
 }
 
 function buildMapFromForm(event) {
@@ -799,20 +819,21 @@ function buildMapFromForm(event) {
 }
 
 function readMapFormValues() {
-  const nextCols = clamp(Number(mapInputs.cols.value) || 10, 4, 30);
-  const nextRows = clamp(Number(mapInputs.rows.value) || 8, 4, 30);
+  const nextCols = clamp(Number(editMapInputs.cols.value) || 10, 4, 30);
+  const nextRows = clamp(Number(editMapInputs.rows.value) || 8, 4, 30);
   const maxCells = nextCols * nextRows;
 
   return {
     nextCols,
     nextRows,
-    obstacleCount: clamp(Number(mapInputs.obstacles.value) || 0, 0, maxCells),
-    addAllies: clamp(Number(mapInputs.addAllies.value) || 0, 0, maxCells),
-    addEnemies: clamp(Number(mapInputs.addEnemies.value) || 0, 0, maxCells)
+    obstacleCount: clamp(Number(editMapInputs.obstacles.value) || 0, 0, maxCells),
+    addAllies: clamp(Number(editMapInputs.addAllies.value) || 0, 0, maxCells),
+    addEnemies: clamp(Number(editMapInputs.addEnemies.value) || 0, 0, maxCells)
   };
 }
 
-function applyMapOnlyChanges() {
+function applyMapOnlyChanges(event) {
+  event.preventDefault();
   const { nextCols, nextRows, obstacleCount, addAllies, addEnemies } = readMapFormValues();
   cols = nextCols;
   rows = nextRows;
@@ -879,7 +900,7 @@ function applyMapOnlyChanges() {
   selectedUnitId = selectedUnitId && getUnit(selectedUnitId) ? selectedUnitId : null;
   duel = null;
   activeSkill = null;
-  closeMapResetModal();
+  closeEditMap();
   writeLog(`맵만 수정 완료. [${cols} x ${rows}], 장애물 ${units.filter((piece) => piece.type === "obstacle").length}개`, "↻");
   render();
   renderSheet();
@@ -1095,11 +1116,14 @@ unitSheet.addEventListener("submit", (event) => event.preventDefault());
 addSkillButton.addEventListener("click", addSkill);
 deleteUnit.addEventListener("click", removeSelectedUnit);
 resetMap.addEventListener("click", resetToBlank);
+editMap.addEventListener("click", openEditMapModal);
 saveLoadMap.addEventListener("click", openSaveLoadModal);
 mapModal.addEventListener("submit", buildMapFromForm);
 closeMapModal.addEventListener("click", closeMapResetModal);
 cancelMapModal.addEventListener("click", closeMapResetModal);
-editMapOnly.addEventListener("click", applyMapOnlyChanges);
+editMapModal.addEventListener("submit", applyMapOnlyChanges);
+closeEditMapModal.addEventListener("click", closeEditMap);
+cancelEditMapModal.addEventListener("click", closeEditMap);
 closeSaveLoadModal.addEventListener("click", closeSaveLoad);
 saveMapButton.addEventListener("click", requestSaveMap);
 loadMapButton.addEventListener("click", requestLoadMap);
