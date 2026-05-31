@@ -620,11 +620,12 @@ button:hover {
   border-radius: 10px;
   background: var(--panel);
   min-height: 0;
-  padding: 8px 16px;
+  padding: 8px 12px;
   display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 8px 22px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px 10px;
   align-items: center;
+  overflow: hidden;
 }
 
 .legend,
@@ -632,8 +633,19 @@ button:hover {
 .map-tools {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
+}
+
+.add-tools {
+  justify-content: end;
+  min-width: 0;
+}
+
+.map-tools {
+  justify-content: end;
+  flex-wrap: nowrap;
+  min-width: max-content;
 }
 
 .legend span {
@@ -694,7 +706,9 @@ button:hover {
 }
 
 .map-tools button {
-  min-width: 112px;
+  min-width: 92px;
+  padding-inline: 10px;
+  white-space: nowrap;
 }
 
 .log {
