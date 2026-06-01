@@ -44,6 +44,10 @@
               <span id="sheetType" class="sheet-type">아군</span>
               <input id="sheetName" class="sheet-name" type="text" aria-label="이름">
             </div>
+            <label id="sheetImportBox" class="sheet-import-box" title="엑셀 파일의 합계 능력치를 가져옵니다.">
+              <span>파일 가져오기</span>
+              <input id="sheetImportFile" type="file" accept=".xlsx,.xls">
+            </label>
             <button id="deleteUnit" class="danger" type="button">삭제</button>
           </header>
 
@@ -233,6 +237,7 @@
       </div>
     </section>
 
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="game.js"></script>
   </body>
 </html>

@@ -396,6 +396,11 @@ button:hover {
   gap: 10px;
 }
 
+.sheet-head > div {
+  min-width: 0;
+  flex: 1;
+}
+
 .sheet-type {
   display: inline-block;
   margin-bottom: 6px;
@@ -413,6 +418,30 @@ button:hover {
   font-size: 24px;
   font-weight: 900;
   padding: 2px 0 6px;
+}
+
+.sheet-import-box {
+  width: 92px;
+  height: 44px;
+  flex: 0 0 92px;
+  border: 2px solid #ff1616;
+  background: #070707;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.sheet-import-box.drag-over {
+  background: rgba(255, 22, 22, 0.16);
+  color: var(--text);
+}
+
+.sheet-import-box input {
+  display: none;
 }
 
 .danger {

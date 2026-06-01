@@ -9,6 +9,8 @@ const unitSheet = document.querySelector("#unitSheet");
 const detailBar = document.querySelector("#detailBar");
 const sheetType = document.querySelector("#sheetType");
 const sheetName = document.querySelector("#sheetName");
+const sheetImportBox = document.querySelector("#sheetImportBox");
+const sheetImportFile = document.querySelector("#sheetImportFile");
 const primaryStats = document.querySelector("#primaryStats");
 const skillList = document.querySelector("#skillList");
 const addSkillButton = document.querySelector("#addSkill");
@@ -104,6 +106,18 @@ let pendingConfirm = null;
 let activeSkill = null;
 const SAVE_KEY = "trpg-battle-board-saves";
 const WEBHOOK_KEY = "trpg-battle-board-discord-webhook";
+const SHEET_STAT_LABELS = {
+  체력: "hp",
+  스테미나: "stamina",
+  스태미나: "stamina",
+  힘: "str",
+  건강: "con",
+  속도: "spd",
+  정밀: "pre",
+  지능: "int",
+  지혜: "wis",
+  매력: "cha"
+};
 
 function unit(type, label, x, y, name, overrides = {}) {
   return {
@@ -481,6 +495,110 @@ function syncSheetToUnit() {
   });
 
   render();
+}
+
+function normalizeSheetText(value) {
+  return String(value ?? "").replace(/\s+/g, "").trim();
+}
+
+function readCell(sheet, row, col) {
+  const address = XLSX.utils.encode_cell({ r: row, c: col });
+  return sheet[address]?.v ?? sheet[address]?.w ?? null;
+}
+
+function findCharacterName(sheet, range) {
+  for (let row = range.s.r; row <= range.e.r; row += 1) {
+    for (let col = range.s.c; col <= range.e.c; col += 1) {
+      if (normalizeSheetText(readCell(sheet, row, col)) === "이름") {
+        const name = readCell(sheet, row, col + 1);
+        if (name) return String(name).trim();
+      }
+    }
+  }
+  return "";
+}
+
+function extractTotalsFromWorkbook(workbook) {
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const range = XLSX.utils.decode_range(sheet["!ref"] || "A1:A1");
+  const totals = {};
+  const totalColumns = [];
+
+  for (let row = range.s.r; row <= range.e.r; row += 1) {
+    for (let col = range.s.c; col <= range.e.c; col += 1) {
+      if (normalizeSheetText(readCell(sheet, row, col)) === "합계") totalColumns.push(col);
+    }
+  }
+
+  totalColumns.forEach((totalCol) => {
+    for (let row = range.s.r; row <= range.e.r; row += 1) {
+      const label = normalizeSheetText(readCell(sheet, row, totalCol - 1));
+      const key = SHEET_STAT_LABELS[label];
+      const value = Number(readCell(sheet, row, totalCol));
+      if (key && Number.isFinite(value) && totals[key] == null) totals[key] = value;
+    }
+  });
+
+  return {
+    name: findCharacterName(sheet, range),
+    totals
+  };
+}
+
+function applyImportedStats({ name, totals }) {
+  const piece = getUnit(selectedUnitId);
+  if (!piece) {
+    writeLog("능력치를 적용할 말을 먼저 우클릭으로 선택하세요.", "!");
+    return;
+  }
+
+  ensureUnitShape(piece);
+  if (name) piece.stats.name = name;
+
+  if (Number.isFinite(totals.hp)) {
+    piece.stats.hp = Math.max(0, Math.round(totals.hp));
+    piece.stats.maxHp = Math.max(1, Math.round(totals.hp));
+  }
+
+  if (Number.isFinite(totals.stamina)) {
+    piece.stats.stamina = Math.max(0, Math.round(totals.stamina));
+    piece.stats.maxStamina = Math.max(1, Math.round(totals.stamina));
+  }
+
+  PRIMARY_STATS.forEach(([key]) => {
+    if (Number.isFinite(totals[key])) {
+      piece.stats.primary[key] = Math.max(0, Math.round(totals[key]));
+      piece.stats.bonus[key] = 0;
+    }
+  });
+
+  render();
+  renderSheet();
+  renderDuel();
+  writeLog(`${piece.stats.name} 능력치를 엑셀 합계값으로 가져왔습니다.`, "↥");
+}
+
+async function importStatsFromFile(file) {
+  if (!file) return;
+  if (!window.XLSX) {
+    writeLog("엑셀 읽기 도구를 불러오지 못했습니다. 인터넷 연결 후 새로고침해 주세요.", "!");
+    return;
+  }
+
+  try {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array", cellFormula: true, cellDates: false });
+    const parsed = extractTotalsFromWorkbook(workbook);
+    if (!Object.keys(parsed.totals).length) {
+      writeLog("엑셀에서 합계 능력치 값을 찾지 못했습니다.", "!");
+      return;
+    }
+    applyImportedStats(parsed);
+  } catch {
+    writeLog("엑셀 파일을 읽지 못했습니다.", "!");
+  } finally {
+    sheetImportFile.value = "";
+  }
 }
 
 function removeSelectedUnit() {
@@ -1113,6 +1231,19 @@ board.addEventListener("contextmenu", (event) => {
 
 unitSheet.addEventListener("input", syncSheetToUnit);
 unitSheet.addEventListener("submit", (event) => event.preventDefault());
+sheetImportFile.addEventListener("change", () => importStatsFromFile(sheetImportFile.files?.[0]));
+sheetImportBox.addEventListener("dragover", (event) => {
+  event.preventDefault();
+  sheetImportBox.classList.add("drag-over");
+});
+sheetImportBox.addEventListener("dragleave", () => {
+  sheetImportBox.classList.remove("drag-over");
+});
+sheetImportBox.addEventListener("drop", (event) => {
+  event.preventDefault();
+  sheetImportBox.classList.remove("drag-over");
+  importStatsFromFile(event.dataTransfer.files?.[0]);
+});
 addSkillButton.addEventListener("click", addSkill);
 deleteUnit.addEventListener("click", removeSelectedUnit);
 resetMap.addEventListener("click", resetToBlank);
