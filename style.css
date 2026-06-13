@@ -758,8 +758,8 @@ button:hover {
 }
 
 .map-tools button {
-  min-width: 92px;
-  padding-inline: 10px;
+  min-width: 88px;
+  padding-inline: 9px;
   white-space: nowrap;
 }
 

@@ -2,6 +2,7 @@ let cols = 10;
 let rows = 8;
 
 const board = document.querySelector("#board");
+const boardWrap = document.querySelector(".board-wrap");
 const logText = document.querySelector("#battleLog");
 const logIcon = document.querySelector("#logIcon");
 const emptyDetail = document.querySelector("#emptyDetail");
@@ -18,6 +19,7 @@ const deleteUnit = document.querySelector("#deleteUnit");
 const resetMap = document.querySelector("#resetMap");
 const editMap = document.querySelector("#editMap");
 const saveLoadMap = document.querySelector("#saveLoadMap");
+const captureMapImage = document.querySelector("#captureMapImage");
 const duelTitle = document.querySelector("#duelTitle");
 const duelUnits = document.querySelector("#duelUnits");
 const duelStats = document.querySelector("#duelStats");
@@ -679,6 +681,53 @@ function writeLog(text, icon = "⚔") {
   logText.textContent = text;
 }
 
+function getImageTimestamp() {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, "0");
+  return [
+    now.getFullYear(),
+    pad(now.getMonth() + 1),
+    pad(now.getDate())
+  ].join("-") + "_" + [
+    pad(now.getHours()),
+    pad(now.getMinutes()),
+    pad(now.getSeconds())
+  ].join("-");
+}
+
+async function captureBoardImage() {
+  if (!window.html2canvas) {
+    writeLog("이미지 캡처 도구를 불러오지 못했습니다. 새로고침 후 다시 시도하세요.", "!");
+    return;
+  }
+
+  captureMapImage.disabled = true;
+
+  try {
+    const canvas = await window.html2canvas(boardWrap, {
+      backgroundColor: "#050607",
+      scale: 2,
+      logging: false
+    });
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) throw new Error("image export failed");
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `trpg-battle-map-${getImageTimestamp()}.png`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    writeLog("중앙 전투판 이미지를 다운로드했습니다.", "▣");
+  } catch {
+    writeLog("이미지 저장에 실패했습니다.", "!");
+  } finally {
+    captureMapImage.disabled = false;
+  }
+}
+
 function resetToBlank() {
   openMapModal();
 }
@@ -1283,6 +1332,7 @@ deleteUnit.addEventListener("click", removeSelectedUnit);
 resetMap.addEventListener("click", resetToBlank);
 editMap.addEventListener("click", openEditMapModal);
 saveLoadMap.addEventListener("click", openSaveLoadModal);
+captureMapImage.addEventListener("click", captureBoardImage);
 mapModal.addEventListener("submit", buildMapFromForm);
 closeMapModal.addEventListener("click", closeMapResetModal);
 cancelMapModal.addEventListener("click", closeMapResetModal);
