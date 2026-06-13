@@ -359,6 +359,12 @@ button:hover {
   font-weight: 900;
 }
 
+.duel-damage {
+  color: #ff9b42;
+  font-size: 13px;
+  font-weight: 900;
+}
+
 .empty-detail {
   height: 100%;
   min-height: 260px;

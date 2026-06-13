@@ -425,21 +425,7 @@ function isEnemy(attacker, target) {
 
 function attack(attacker, defender) {
   prepareDuel(attacker, defender);
-
-  const damage = Math.max(1, attacker.stats.attack - defender.stats.defense);
-  defender.stats.hp = clamp(defender.stats.hp - damage, 0, defender.stats.maxHp);
-
-  const defenderEl = board.querySelector(`.piece[data-id="${defender.id}"]`);
-  defenderEl?.classList.add("hit");
-
-  if (defender.stats.hp <= 0) {
-    units = units.filter((piece) => piece.id !== defender.id);
-    if (selectedUnitId === defender.id) selectedUnitId = attacker.id;
-    writeLog(`${attacker.stats.name} 공격! ${defender.stats.name}에게 ${damage} 피해. 격파!`, "⚔");
-    return;
-  }
-
-  writeLog(`${attacker.stats.name} 공격! ${defender.stats.name}에게 ${damage} 피해. HP ${defender.stats.hp}`, "⚔");
+  writeLog(`${attacker.stats.name} → ${defender.stats.name} 판정 대결 준비.`, "⚔");
 }
 
 function highlightTargets(piece) {
@@ -767,6 +753,7 @@ function renderDuel() {
   duelResult.innerHTML = `
     <div class="duel-roll"><span>공격자 ${attackerLabel}</span><b>${duel.result.attackerTotal}</b></div>
     <div class="duel-diff">결과값: 방어자 - 공격자 = ${duel.result.diff}</div>
+    <div class="duel-damage">${duel.result.damage?.text ?? "피해 없음"}</div>
     <div class="duel-roll"><span>방어자 ${defenderLabel}</span><b>${duel.result.defenderTotal}</b></div>
     <div class="duel-winner">${duel.result.winner}</div>
   `;
@@ -809,6 +796,7 @@ function rollDuel() {
   const attackerTotal = attackerRoll + attacker.stats.bonus[duel.attackerStat];
   const defenderTotal = defenderRoll + defender.stats.bonus[duel.defenderStat];
   const diff = defenderTotal - attackerTotal;
+  const damage = applyDuelDamage(attacker, defender, diff);
 
   duel.result = {
     attackerStat: duel.attackerStat,
@@ -816,6 +804,7 @@ function rollDuel() {
     attackerTotal,
     defenderTotal,
     diff,
+    damage,
     winner: diff < 0
       ? `${attacker.stats.name} 우세`
       : diff > 0
@@ -825,11 +814,40 @@ function rollDuel() {
 
   const usedSkill = getActiveSkillName();
   clearActiveSkill();
+  writeLog(damage.amount > 0 ? `${damage.text} 적용.` : "판정 동률. 피해 없음.", "⚔");
   sendDiscordRoll(attacker, defender, duel.result, usedSkill);
+  render();
+  renderSheet();
 }
 
 function rollDie(sides) {
   return Math.floor(Math.random() * Math.max(1, Number(sides) || 1)) + 1;
+}
+
+function applyDuelDamage(attacker, defender, diff) {
+  if (diff === 0) {
+    return {
+      amount: 0,
+      text: "피해 없음"
+    };
+  }
+
+  const target = diff < 0 ? defender : attacker;
+  const amount = Math.abs(diff);
+  target.stats.hp = clamp(target.stats.hp - amount, 0, target.stats.maxHp);
+
+  board.querySelector(`.piece[data-id="${target.id}"]`)?.classList.add("hit");
+
+  return {
+    targetId: target.id,
+    targetName: target.stats.name,
+    amount,
+    remainingHp: target.stats.hp,
+    defeated: target.stats.hp <= 0,
+    text: target.stats.hp <= 0
+      ? `${target.stats.name} ${amount} 피해, HP 0`
+      : `${target.stats.name} ${amount} 피해, HP ${target.stats.hp}`
+  };
 }
 
 function setActiveSkill(unitId, index, stat) {
