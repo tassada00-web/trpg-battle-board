@@ -302,9 +302,9 @@ function isActiveSkill(piece, index) {
   return activeSkill?.unitId === piece.id && activeSkill?.index === index;
 }
 
-function selectUnit(id) {
+function selectUnit(id, renderBoard = true) {
   selectedUnitId = id;
-  render();
+  if (renderBoard) render();
   renderSheet();
 }
 
@@ -335,6 +335,7 @@ function startDrag(event) {
   const piece = getUnit(event.currentTarget.dataset.id);
   if (!piece) return;
 
+  selectUnit(piece.id, false);
   event.preventDefault();
   event.currentTarget.setPointerCapture(event.pointerId);
 
