@@ -655,8 +655,8 @@ function addUnit(type) {
     writeLog("장애물을 추가했습니다.", "+");
   } else {
     idCounter += 1;
-    const label = type === "ally" ? "A" : "E";
-    const name = type === "ally" ? `아군 ${idCounter}` : `적군 ${idCounter}`;
+    const label = type === "enemy" ? getNextExtraEnemyLabel() : "A";
+    const name = type === "ally" ? `아군 ${idCounter}` : `적군 ${label}`;
     const added = unit(type, label, empty.x, empty.y, name, {});
     units.push(added);
     selectedUnitId = added.id;
@@ -665,6 +665,15 @@ function addUnit(type) {
 
   render();
   renderSheet();
+}
+
+function getNextExtraEnemyLabel(collection = units) {
+  const maxIndex = collection.reduce((max, piece) => {
+    if (piece.type !== "enemy") return max;
+    const match = String(piece.label).match(/^E-(\d+)$/);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+  return `E-${maxIndex + 1}`;
 }
 
 function findEmptyCell() {
@@ -1079,8 +1088,8 @@ function applyMapOnlyChanges(event) {
     const spot = findSpot(type === "enemy");
     if (!spot) return false;
     const sameTypeCount = nextUnits.filter((piece) => piece.type === type).length + 1;
-    const label = String(sameTypeCount);
-    const name = type === "ally" ? `아군 ${sameTypeCount}` : `적군 ${sameTypeCount}`;
+    const label = type === "enemy" ? getNextExtraEnemyLabel(nextUnits) : String(sameTypeCount);
+    const name = type === "ally" ? `아군 ${sameTypeCount}` : `적군 ${label}`;
     const piece = unit(type, label, spot.x, spot.y, name, {});
     occupied.add(`${spot.x},${spot.y}`);
     nextUnits.push(piece);

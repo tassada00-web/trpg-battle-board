@@ -137,7 +137,15 @@ button:hover {
   display: grid;
   place-items: center;
   color: #fff;
+  font-size: clamp(12px, calc(var(--cell) * 0.24), 18px);
   font-weight: 900;
+  line-height: 1;
+  text-shadow:
+    -1px -1px 0 #050505,
+    1px -1px 0 #050505,
+    -1px 1px 0 #050505,
+    1px 1px 0 #050505,
+    0 0 7px rgba(0, 0, 0, 0.95);
   transform: translate(-50%, -50%);
   cursor: grab;
   z-index: 3;
@@ -155,17 +163,17 @@ button:hover {
 
 .piece.player {
   background: radial-gradient(circle at 35% 28%, #8fffb3, #26b65e 65%, #0c6b35);
-  color: var(--player);
+  color: #fff;
 }
 
 .piece.ally {
   background: radial-gradient(circle at 35% 28%, #a9ddff, #2d8fd0 65%, #105982);
-  color: var(--ally);
+  color: #fff;
 }
 
 .piece.enemy {
   background: radial-gradient(circle at 35% 28%, #ff9b8d, #dc352b 65%, #7b1510);
-  color: var(--enemy);
+  color: #fff;
 }
 
 .piece.obstacle {
