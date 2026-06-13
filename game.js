@@ -22,6 +22,7 @@ const duelTitle = document.querySelector("#duelTitle");
 const duelUnits = document.querySelector("#duelUnits");
 const duelStats = document.querySelector("#duelStats");
 const duelResult = document.querySelector("#duelResult");
+const skipDamageCalculation = document.querySelector("#skipDamageCalculation");
 const discordWebhook = document.querySelector("#discordWebhook");
 const mapModal = document.querySelector("#mapModal");
 const closeMapModal = document.querySelector("#closeMapModal");
@@ -106,6 +107,7 @@ let pendingConfirm = null;
 let activeSkill = null;
 const SAVE_KEY = "trpg-battle-board-saves";
 const WEBHOOK_KEY = "trpg-battle-board-discord-webhook";
+const SKIP_DAMAGE_KEY = "trpg-battle-board-skip-damage";
 const SHEET_STAT_LABELS = {
   체력: "hp",
   스테미나: "stamina",
@@ -698,6 +700,11 @@ discordWebhook.addEventListener("input", () => {
   localStorage.setItem(WEBHOOK_KEY, discordWebhook.value.trim());
 });
 
+skipDamageCalculation.checked = localStorage.getItem(SKIP_DAMAGE_KEY) === "true";
+skipDamageCalculation.addEventListener("change", () => {
+  localStorage.setItem(SKIP_DAMAGE_KEY, String(skipDamageCalculation.checked));
+});
+
 function prepareDuel(attacker, defender) {
   duel = {
     attackerId: attacker.id,
@@ -796,7 +803,7 @@ function rollDuel() {
   const attackerTotal = attackerRoll + attacker.stats.bonus[duel.attackerStat];
   const defenderTotal = defenderRoll + defender.stats.bonus[duel.defenderStat];
   const diff = defenderTotal - attackerTotal;
-  const damage = applyDuelDamage(attacker, defender, diff);
+  const damage = skipDamageCalculation.checked ? skipDuelDamage() : applyDuelDamage(attacker, defender, diff);
 
   duel.result = {
     attackerStat: duel.attackerStat,
@@ -822,6 +829,14 @@ function rollDuel() {
 
 function rollDie(sides) {
   return Math.floor(Math.random() * Math.max(1, Number(sides) || 1)) + 1;
+}
+
+function skipDuelDamage() {
+  return {
+    amount: 0,
+    skipped: true,
+    text: "데미지 계산안함"
+  };
 }
 
 function applyDuelDamage(attacker, defender, diff) {

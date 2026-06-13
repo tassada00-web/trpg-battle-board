@@ -365,6 +365,23 @@ button:hover {
   font-weight: 900;
 }
 
+.damage-toggle {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.damage-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--line);
+}
+
 .empty-detail {
   height: 100%;
   min-height: 260px;
