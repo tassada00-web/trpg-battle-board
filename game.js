@@ -292,7 +292,7 @@ function renderSkills(piece) {
   `).join("");
 
   skillList.innerHTML = piece.stats.skills.map((skill, index) => `
-    <article class="skill-card${isActiveSkill(piece, index) ? " active-skill" : ""}" draggable="true" data-skill="${index}">
+    <article class="skill-card${isActiveSkill(piece, index) ? " active-skill" : ""}" draggable="false" data-skill="${index}">
       <input type="text" data-skill-name="${index}" value="${escapeHtml(skill.name)}" aria-label="스킬 이름">
       <label class="skill-stat-row">
         스킬판정
@@ -305,14 +305,22 @@ function renderSkills(piece) {
   `).join("");
 
   skillList.querySelectorAll(".skill-card").forEach((card) => {
+    card.addEventListener("pointerdown", prepareSkillCardDrag);
+    card.addEventListener("mouseup", resetSkillCardDrag);
     card.addEventListener("click", activateSkillFromCard);
     card.addEventListener("dragstart", startSkillDrag);
     card.addEventListener("dragend", endSkillDrag);
   });
 
+  skillList.querySelectorAll(".skill-card input, .skill-card select, .skill-card textarea").forEach((control) => {
+    control.addEventListener("pointerdown", disableSkillControlDrag);
+    control.addEventListener("mousedown", disableSkillControlDrag);
+    control.addEventListener("click", stopSkillControlEvent);
+    control.addEventListener("blur", restoreSkillControlDrag);
+  });
+
   skillList.querySelectorAll("[data-skill-stat]").forEach((select) => {
     select.addEventListener("change", () => setActiveSkill(piece.id, Number(select.dataset.skillStat), select.value));
-    select.addEventListener("click", (event) => event.stopPropagation());
   });
 }
 
@@ -321,7 +329,7 @@ function isActiveSkill(piece, index) {
 }
 
 function activateSkillFromCard(event) {
-  if (event.target.closest("input, select, textarea, button")) return;
+  if (event.target.closest("input, select, textarea, button, .skill-stat-row")) return;
 
   const piece = getUnit(selectedUnitId);
   const index = Number(event.currentTarget.dataset.skill);
@@ -329,6 +337,30 @@ function activateSkillFromCard(event) {
   if (!skill) return;
 
   setActiveSkill(piece.id, index, skill.stat);
+}
+
+function prepareSkillCardDrag(event) {
+  if (event.target.closest("input, select, textarea, button, .skill-stat-row")) return;
+  event.currentTarget.draggable = true;
+}
+
+function resetSkillCardDrag(event) {
+  event.currentTarget.draggable = false;
+}
+
+function disableSkillControlDrag(event) {
+  event.stopPropagation();
+  const card = event.currentTarget.closest(".skill-card");
+  if (card) card.draggable = false;
+}
+
+function restoreSkillControlDrag(event) {
+  const card = event.currentTarget.closest(".skill-card");
+  if (card) card.draggable = false;
+}
+
+function stopSkillControlEvent(event) {
+  event.stopPropagation();
 }
 
 function selectUnit(id, renderBoard = true) {
@@ -703,6 +735,11 @@ function addSkill() {
 }
 
 function startSkillDrag(event) {
+  if (event.target.closest("input, select, textarea, button, .skill-stat-row")) {
+    event.preventDefault();
+    return;
+  }
+
   syncSheetToUnit();
   skillDrag = {
     unitId: selectedUnitId,
@@ -714,6 +751,7 @@ function startSkillDrag(event) {
 
 function endSkillDrag(event) {
   event.currentTarget.classList.remove("dragging-skill");
+  event.currentTarget.draggable = false;
   const piece = getUnit(skillDrag?.unitId);
   const outsideDetail = !detailBar.contains(document.elementFromPoint(event.clientX, event.clientY));
 
