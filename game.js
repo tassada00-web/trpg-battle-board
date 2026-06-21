@@ -110,6 +110,7 @@ let activeSkill = null;
 const SAVE_KEY = "trpg-battle-board-saves";
 const WEBHOOK_KEY = "trpg-battle-board-discord-webhook";
 const SKIP_DAMAGE_KEY = "trpg-battle-board-skip-damage";
+const SKILL_IMPORT_STOP_LABELS = new Set(["직업", "상태", "장비효과"]);
 const SHEET_STAT_LABELS = {
   체력: "hp",
   스테미나: "stamina",
@@ -512,6 +513,10 @@ function readCell(sheet, row, col) {
   return sheet[address]?.v ?? sheet[address]?.w ?? null;
 }
 
+function cleanSheetText(value) {
+  return String(value ?? "").trim();
+}
+
 function findCharacterName(sheet, range) {
   for (let row = range.s.r; row <= range.e.r; row += 1) {
     for (let col = range.s.c; col <= range.e.c; col += 1) {
@@ -522,6 +527,49 @@ function findCharacterName(sheet, range) {
     }
   }
   return "";
+}
+
+function findSkillColumns(sheet, range) {
+  for (let row = range.s.r; row <= range.e.r; row += 1) {
+    for (let col = range.s.c; col <= range.e.c; col += 1) {
+      if (normalizeSheetText(readCell(sheet, row, col)) !== "스킬이름") continue;
+
+      let contentCol = col + 1;
+      for (let searchCol = col + 1; searchCol <= range.e.c; searchCol += 1) {
+        if (normalizeSheetText(readCell(sheet, row, searchCol)) === "내용") {
+          contentCol = searchCol;
+          break;
+        }
+      }
+
+      return { headerRow: row, nameCol: col, contentCol };
+    }
+  }
+
+  return null;
+}
+
+function extractSkillsFromSheet(sheet, range) {
+  const columns = findSkillColumns(sheet, range);
+  if (!columns) return [];
+
+  const skills = [];
+  for (let row = columns.headerRow + 1; row <= range.e.r; row += 1) {
+    const name = cleanSheetText(readCell(sheet, row, columns.nameCol));
+    const desc = cleanSheetText(readCell(sheet, row, columns.contentCol));
+    if (SKILL_IMPORT_STOP_LABELS.has(normalizeSheetText(name))) break;
+    if (!name && !desc && skills.length) break;
+    if (!name && !desc) continue;
+
+    skills.push({
+      id: crypto.randomUUID(),
+      name: name || "이름 없는 스킬",
+      stat: "str",
+      desc
+    });
+  }
+
+  return skills;
 }
 
 function extractTotalsFromWorkbook(workbook) {
@@ -547,11 +595,12 @@ function extractTotalsFromWorkbook(workbook) {
 
   return {
     name: findCharacterName(sheet, range),
-    totals
+    totals,
+    skills: extractSkillsFromSheet(sheet, range)
   };
 }
 
-function applyImportedStats({ name, totals }) {
+function applyImportedStats({ name, totals, skills = [] }) {
   const piece = getUnit(selectedUnitId);
   if (!piece) {
     writeLog("능력치를 적용할 말을 먼저 우클릭으로 선택하세요.", "!");
@@ -582,10 +631,15 @@ function applyImportedStats({ name, totals }) {
     piece.stats.damage = Math.max(0, Math.round(totals.damage));
   }
 
+  if (skills.length) {
+    piece.stats.skills = skills;
+    clearActiveSkill();
+  }
+
   render();
   renderSheet();
   renderDuel();
-  writeLog(`${piece.stats.name} 능력치를 엑셀 합계값으로 가져왔습니다.`, "↥");
+  writeLog(`${piece.stats.name} 능력치${skills.length ? `와 스킬 ${skills.length}개` : ""}를 엑셀에서 가져왔습니다.`, "↥");
 }
 
 async function importStatsFromFile(file) {
@@ -599,8 +653,8 @@ async function importStatsFromFile(file) {
     const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(buffer, { type: "array", cellFormula: true, cellDates: false });
     const parsed = extractTotalsFromWorkbook(workbook);
-    if (!Object.keys(parsed.totals).length) {
-      writeLog("엑셀에서 합계 능력치 값을 찾지 못했습니다.", "!");
+    if (!Object.keys(parsed.totals).length && !parsed.skills.length) {
+      writeLog("엑셀에서 합계 능력치나 스킬 값을 찾지 못했습니다.", "!");
       return;
     }
     applyImportedStats(parsed);
