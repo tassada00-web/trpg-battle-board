@@ -787,7 +787,10 @@ function renderDuel() {
     `
     : `<p>적 유닛 위로 드래그하면 판정 대결이 준비됩니다.</p>`;
 
-  const statButtons = (side, activeKey) => PRIMARY_STATS.map(([key, label]) => `
+  const statButtons = (side, activeKey) => [
+    ...PRIMARY_STATS.map(([key, label]) => ({ key, label })),
+    { key: "giveup", label: "포기" }
+  ].map(({ key, label }) => `
     <button class="duel-stat${activeKey === key ? " active" : ""}" type="button" data-duel-side="${side}" data-duel-stat="${key}" ${ready ? "" : "disabled"}>
       ${label}
     </button>
@@ -813,8 +816,8 @@ function renderDuel() {
     return;
   }
 
-  const attackerLabel = PRIMARY_STATS.find(([key]) => key === duel.result.attackerStat)?.[1] ?? "공격";
-  const defenderLabel = PRIMARY_STATS.find(([key]) => key === duel.result.defenderStat)?.[1] ?? "방어";
+  const attackerLabel = getDuelStatLabel(duel.result.attackerStat, "공격");
+  const defenderLabel = getDuelStatLabel(duel.result.defenderStat, "방어");
   duelResult.innerHTML = `
     <div class="duel-roll"><span>공격자 ${attackerLabel}</span><b>${duel.result.attackerTotal}</b></div>
     <div class="duel-diff">결과값: 방어자 - 공격자 = ${duel.result.diff}</div>
@@ -856,10 +859,8 @@ function rollDuel() {
   ensureUnitShape(attacker);
   ensureUnitShape(defender);
 
-  const attackerRoll = rollDie(attacker.stats.primary[duel.attackerStat]);
-  const defenderRoll = rollDie(defender.stats.primary[duel.defenderStat]);
-  const attackerTotal = attackerRoll + attacker.stats.bonus[duel.attackerStat];
-  const defenderTotal = defenderRoll + defender.stats.bonus[duel.defenderStat];
+  const attackerTotal = getDuelTotal(attacker, duel.attackerStat);
+  const defenderTotal = getDuelTotal(defender, duel.defenderStat);
   const diff = defenderTotal - attackerTotal;
   const damage = skipDamageCalculation.checked ? skipDuelDamage() : applyDuelDamage(attacker, defender, diff);
 
@@ -887,6 +888,16 @@ function rollDuel() {
 
 function rollDie(sides) {
   return Math.floor(Math.random() * Math.max(1, Number(sides) || 1)) + 1;
+}
+
+function getDuelStatLabel(stat, fallback) {
+  if (stat === "giveup") return "포기";
+  return PRIMARY_STATS.find(([key]) => key === stat)?.[1] ?? fallback;
+}
+
+function getDuelTotal(piece, stat) {
+  if (stat === "giveup") return 0;
+  return rollDie(piece.stats.primary[stat]) + piece.stats.bonus[stat];
 }
 
 function skipDuelDamage() {
