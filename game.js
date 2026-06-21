@@ -305,18 +305,30 @@ function renderSkills(piece) {
   `).join("");
 
   skillList.querySelectorAll(".skill-card").forEach((card) => {
+    card.addEventListener("click", activateSkillFromCard);
     card.addEventListener("dragstart", startSkillDrag);
     card.addEventListener("dragend", endSkillDrag);
   });
 
   skillList.querySelectorAll("[data-skill-stat]").forEach((select) => {
     select.addEventListener("change", () => setActiveSkill(piece.id, Number(select.dataset.skillStat), select.value));
-    select.addEventListener("click", () => setActiveSkill(piece.id, Number(select.dataset.skillStat), select.value));
+    select.addEventListener("click", (event) => event.stopPropagation());
   });
 }
 
 function isActiveSkill(piece, index) {
   return activeSkill?.unitId === piece.id && activeSkill?.index === index;
+}
+
+function activateSkillFromCard(event) {
+  if (event.target.closest("input, select, textarea, button")) return;
+
+  const piece = getUnit(selectedUnitId);
+  const index = Number(event.currentTarget.dataset.skill);
+  const skill = piece?.stats.skills[index];
+  if (!skill) return;
+
+  setActiveSkill(piece.id, index, skill.stat);
 }
 
 function selectUnit(id, renderBoard = true) {
