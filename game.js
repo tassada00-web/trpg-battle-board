@@ -120,7 +120,8 @@ const SHEET_STAT_LABELS = {
   정밀: "pre",
   지능: "int",
   지혜: "wis",
-  매력: "cha"
+  매력: "cha",
+  데미지: "damage"
 };
 
 function unit(type, label, x, y, name, overrides = {}) {
@@ -136,6 +137,7 @@ function unit(type, label, x, y, name, overrides = {}) {
       maxHp: overrides.maxHp ?? 20,
       stamina: overrides.stamina ?? 10,
       maxStamina: overrides.maxStamina ?? 10,
+      damage: overrides.damage ?? 0,
       attack: overrides.attack ?? 5,
       defense: overrides.defense ?? 1,
       move: overrides.move ?? 3,
@@ -242,7 +244,16 @@ function renderSheet() {
         <input type="number" min="-99" max="99" data-bonus="${key}" value="${piece.stats.bonus[key]}">
       </span>
     </label>
-  `).join("");
+  `).join("") + `
+    <label class="stat-field">
+      데미지
+      <span>
+        <small>추가</small>
+        <input type="number" min="0" max="999" data-damage value="${piece.stats.damage}">
+      </span>
+      <span class="stat-placeholder"></span>
+    </label>
+  `;
 
   renderSkills(piece);
 }
@@ -252,6 +263,7 @@ function ensureUnitShape(piece) {
   piece.stats.hp ??= piece.stats.maxHp;
   piece.stats.maxStamina ??= piece.stats.stamina ?? 10;
   piece.stats.stamina ??= piece.stats.maxStamina;
+  piece.stats.damage ??= 0;
   piece.stats.primary ??= {};
   piece.stats.bonus ??= {};
   PRIMARY_STATS.forEach(([key]) => {
@@ -470,6 +482,9 @@ function syncSheetToUnit() {
     piece.stats.bonus[input.dataset.bonus] = clamp(Number(input.value) || 0, -99, 99);
   });
 
+  const damageInput = primaryStats.querySelector("[data-damage]");
+  piece.stats.damage = clamp(Number(damageInput?.value) || 0, 0, 999);
+
   skillList.querySelectorAll("[data-skill-name]").forEach((input) => {
     const index = Number(input.dataset.skillName);
     if (piece.stats.skills[index]) piece.stats.skills[index].name = input.value.trim() || "이름 없는 스킬";
@@ -562,6 +577,10 @@ function applyImportedStats({ name, totals }) {
       piece.stats.bonus[key] = 0;
     }
   });
+
+  if (Number.isFinite(totals.damage)) {
+    piece.stats.damage = Math.max(0, Math.round(totals.damage));
+  }
 
   render();
   renderSheet();
@@ -820,7 +839,7 @@ function renderDuel() {
   const defenderLabel = getDuelStatLabel(duel.result.defenderStat, "방어");
   duelResult.innerHTML = `
     <div class="duel-roll"><span>공격자 ${attackerLabel}</span><b>${duel.result.attackerTotal}</b></div>
-    <div class="duel-diff">결과값: 방어자 - 공격자 = ${duel.result.diff}</div>
+    <div class="duel-diff">결과값: 공격자 - 방어자 = ${duel.result.diff}</div>
     <div class="duel-damage">${duel.result.damage?.text ?? "피해 없음"}</div>
     <div class="duel-roll"><span>방어자 ${defenderLabel}</span><b>${duel.result.defenderTotal}</b></div>
     <div class="duel-winner">${duel.result.winner}</div>
@@ -861,8 +880,8 @@ function rollDuel() {
 
   const attackerTotal = getDuelTotal(attacker, duel.attackerStat);
   const defenderTotal = getDuelTotal(defender, duel.defenderStat);
-  const diff = defenderTotal - attackerTotal;
-  const damage = skipDamageCalculation.checked ? skipDuelDamage() : applyDuelDamage(attacker, defender, diff);
+  const diff = attackerTotal - defenderTotal;
+  const damage = skipDamageCalculation.checked ? skipDuelDamage() : applyDuelDamage(attacker, defender, attackerTotal, defenderTotal);
 
   duel.result = {
     attackerStat: duel.attackerStat,
@@ -871,16 +890,16 @@ function rollDuel() {
     defenderTotal,
     diff,
     damage,
-    winner: diff < 0
+    winner: diff > 0
       ? `${attacker.stats.name} 우세`
-      : diff > 0
+      : diff < 0
         ? `${defender.stats.name} 우세`
         : "동률"
   };
 
   const usedSkill = getActiveSkillName();
   clearActiveSkill();
-  writeLog(damage.amount > 0 ? `${damage.text} 적용.` : "판정 동률. 피해 없음.", "⚔");
+  writeLog(damage.amount > 0 ? `${damage.text} 적용.` : damage.text, "⚔");
   sendDiscordRoll(attacker, defender, duel.result, usedSkill);
   render();
   renderSheet();
@@ -908,16 +927,20 @@ function skipDuelDamage() {
   };
 }
 
-function applyDuelDamage(attacker, defender, diff) {
-  if (diff === 0) {
+function applyDuelDamage(attacker, defender, attackerTotal, defenderTotal) {
+  if (attackerTotal <= defenderTotal) {
     return {
       amount: 0,
-      text: "피해 없음"
+      text: defenderTotal > attackerTotal ? "방어자 우세. 피해 없음." : "판정 동률. 피해 없음."
     };
   }
 
-  const target = diff < 0 ? defender : attacker;
-  const amount = Math.abs(diff);
+  const target = defender;
+  const bonusDamage = clamp(Number(attacker.stats.damage) || 0, 0, 999);
+  const amount = attackerTotal + bonusDamage;
+  const damageFormula = bonusDamage > 0
+    ? `판정 ${attackerTotal} + 데미지 ${bonusDamage}`
+    : `판정 ${attackerTotal}`;
   target.stats.hp = clamp(target.stats.hp - amount, 0, target.stats.maxHp);
 
   board.querySelector(`.piece[data-id="${target.id}"]`)?.classList.add("hit");
@@ -926,11 +949,12 @@ function applyDuelDamage(attacker, defender, diff) {
     targetId: target.id,
     targetName: target.stats.name,
     amount,
+    bonusDamage,
     remainingHp: target.stats.hp,
     defeated: target.stats.hp <= 0,
     text: target.stats.hp <= 0
-      ? `${target.stats.name} ${amount} 피해, HP 0`
-      : `${target.stats.name} ${amount} 피해, HP ${target.stats.hp}`
+      ? `${target.stats.name} ${amount} 피해(${damageFormula}), HP 0`
+      : `${target.stats.name} ${amount} 피해(${damageFormula}), HP ${target.stats.hp}`
   };
 }
 
