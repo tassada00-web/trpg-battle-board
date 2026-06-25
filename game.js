@@ -852,11 +852,30 @@ async function captureBoardImage() {
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    writeLog("중앙 전투판 이미지를 다운로드했습니다.", "▣");
+    const copied = await copyImageToClipboard(blob);
+    writeLog(
+      copied
+        ? "중앙 전투판 이미지를 다운로드하고 클립보드에 복사했습니다."
+        : "중앙 전투판 이미지를 다운로드했습니다. 클립보드 복사는 브라우저 권한 때문에 실패했습니다.",
+      "▣"
+    );
   } catch {
     writeLog("이미지 저장에 실패했습니다.", "!");
   } finally {
     captureMapImage.disabled = false;
+  }
+}
+
+async function copyImageToClipboard(blob) {
+  if (!navigator.clipboard?.write || !window.ClipboardItem) return false;
+
+  try {
+    await navigator.clipboard.write([
+      new ClipboardItem({ [blob.type]: blob })
+    ]);
+    return true;
+  } catch {
+    return false;
   }
 }
 
