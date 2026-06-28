@@ -616,30 +616,79 @@ function extractSkillsFromSheet(sheet, range) {
   return skills;
 }
 
-function extractTotalsFromWorkbook(workbook) {
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const range = XLSX.utils.decode_range(sheet["!ref"] || "A1:A1");
-  const totals = {};
-  const totalColumns = [];
+function findTotalLabelColumn(sheet, range, headerRow, totalCol) {
+  for (let offset = 1; offset <= 3; offset += 1) {
+    const col = totalCol - offset;
+    if (col < range.s.c) break;
+    if (normalizeSheetText(readCell(sheet, headerRow, col)) === "능력치") return col;
+  }
 
-  for (let row = range.s.r; row <= range.e.r; row += 1) {
-    for (let col = range.s.c; col <= range.e.c; col += 1) {
-      if (normalizeSheetText(readCell(sheet, row, col)) === "합계") totalColumns.push(col);
+  return totalCol - 1;
+}
+
+function totalTableHasCharacterName(sheet, range, headerRow, labelCol, totalCol, characterName) {
+  const targetName = normalizeSheetText(characterName);
+  if (!targetName) return false;
+
+  const minRow = Math.max(range.s.r, headerRow - 4);
+  const maxRow = headerRow - 1;
+  const minCol = Math.max(range.s.c, labelCol - 1);
+  const maxCol = Math.min(range.e.c, totalCol + 1);
+
+  for (let row = minRow; row <= maxRow; row += 1) {
+    for (let col = minCol; col <= maxCol; col += 1) {
+      if (normalizeSheetText(readCell(sheet, row, col)) === targetName) return true;
     }
   }
 
-  totalColumns.forEach((totalCol) => {
-    for (let row = range.s.r; row <= range.e.r; row += 1) {
-      const label = normalizeSheetText(readCell(sheet, row, totalCol - 1));
-      const key = SHEET_STAT_LABELS[label];
-      const value = Number(readCell(sheet, row, totalCol));
-      if (key && Number.isFinite(value) && totals[key] == null) totals[key] = value;
+  return false;
+}
+
+function buildTotalCandidate(sheet, range, headerRow, totalCol, characterName) {
+  const labelCol = findTotalLabelColumn(sheet, range, headerRow, totalCol);
+  const totals = {};
+  let count = 0;
+
+  for (let row = headerRow + 1; row <= Math.min(range.e.r, headerRow + 24); row += 1) {
+    const label = normalizeSheetText(readCell(sheet, row, labelCol));
+    const key = SHEET_STAT_LABELS[label];
+    const value = Number(readCell(sheet, row, totalCol));
+    if (!key || !Number.isFinite(value)) continue;
+
+    totals[key] = value;
+    count += 1;
+  }
+
+  return {
+    totals,
+    count,
+    hasCharacterName: totalTableHasCharacterName(sheet, range, headerRow, labelCol, totalCol, characterName)
+  };
+}
+
+function extractTotalsFromWorkbook(workbook) {
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const range = XLSX.utils.decode_range(sheet["!ref"] || "A1:A1");
+  const name = findCharacterName(sheet, range);
+  const totalCandidates = [];
+
+  for (let row = range.s.r; row <= range.e.r; row += 1) {
+    for (let col = range.s.c; col <= range.e.c; col += 1) {
+      if (normalizeSheetText(readCell(sheet, row, col)) !== "합계") continue;
+
+      const candidate = buildTotalCandidate(sheet, range, row, col, name);
+      if (candidate.count) totalCandidates.push(candidate);
     }
+  }
+
+  totalCandidates.sort((a, b) => {
+    if (a.hasCharacterName !== b.hasCharacterName) return a.hasCharacterName ? -1 : 1;
+    return b.count - a.count;
   });
 
   return {
-    name: findCharacterName(sheet, range),
-    totals,
+    name,
+    totals: totalCandidates[0]?.totals ?? {},
     skills: extractSkillsFromSheet(sheet, range)
   };
 }
