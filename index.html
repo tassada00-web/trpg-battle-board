@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TRPG 전술 보드</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main id="explorationApp" class="exploration-app app-view" aria-label="탐험 보드">
+      <aside class="exploration-panel" aria-label="탐험 설정과 진행">
+        <header class="mode-head">
+          <span>탐험 보드</span>
+          <strong>모험 진행판</strong>
+        </header>
+
+        <section class="exploration-card" aria-label="탐험 생성">
+          <h2>진행판 생성</h2>
+          <div class="exploration-form-grid">
+            <label>
+              규모
+              <select id="explorationSize">
+                <option value="small">작게</option>
+                <option value="medium">보통</option>
+                <option value="large" selected>넓게</option>
+              </select>
+            </label>
+            <label>
+              갈림길
+              <input id="explorationForks" type="number" min="1" max="30" value="8">
+            </label>
+            <label>
+              목표
+              <input id="explorationGoals" type="number" min="1" max="10" value="3">
+            </label>
+          </div>
+          <button id="createExploration" type="button">탐험판 생성</button>
+        </section>
+
+        <section class="exploration-card" aria-label="행동력 이동">
+          <h2>행동력</h2>
+          <div class="action-row">
+            <input id="explorationStepsInput" type="number" min="0" max="99" placeholder="0">
+            <button id="applyExplorationSteps" type="button">주입</button>
+          </div>
+          <div class="step-counter">
+            남은 행동력 <strong id="explorationStepsLeft">0</strong>
+          </div>
+          <button id="toggleExplorationFog" class="secondary" type="button">발판 숨기기</button>
+        </section>
+
+        <section class="exploration-card" aria-label="탐험 도구">
+          <h2>도구</h2>
+          <div class="exploration-actions">
+            <button id="openBattleMode" type="button">전투 보드 열기</button>
+            <button id="openExplorationSaves" type="button">저장/불러오기</button>
+          </div>
+        </section>
+      </aside>
+
+      <section class="exploration-board-wrap" aria-label="탐험 진행판">
+        <div id="explorationBoard" class="exploration-board" aria-label="탐험 격자"></div>
+      </section>
+
+      <aside class="exploration-side" aria-label="탐험 상태">
+        <section class="exploration-card legend-card">
+          <h2>칸 종류</h2>
+          <div class="exploration-legend">
+            <span><i class="tile-key start"></i>시작</span>
+            <span><i class="tile-key normal"></i>일반</span>
+            <span><i class="tile-key fortune"></i>행운</span>
+            <span><i class="tile-key danger"></i>불행</span>
+            <span><i class="tile-key goal"></i>목표</span>
+          </div>
+        </section>
+
+        <section class="exploration-card status-card">
+          <h2>현재 위치</h2>
+          <strong id="explorationPosition">-</strong>
+          <p id="explorationTileText">탐험판을 생성하면 진행 상태가 표시됩니다.</p>
+        </section>
+
+        <section class="exploration-card log-card">
+          <h2>탐험 로그</h2>
+          <div id="explorationLog" class="exploration-log" aria-live="polite"></div>
+        </section>
+      </aside>
+    </main>
+
+    <main id="battleApp" class="app app-view" aria-label="TRPG 전술 보드" hidden>
+      <aside id="duelBar" class="duel-bar" aria-label="주사위 판정 대결">
+        <header>
+          <span>판정 대결</span>
+          <strong id="duelTitle">대기 중</strong>
+        </header>
+        <div id="duelUnits" class="duel-units">
+          <p>적 유닛 위로 드래그하면 판정 대결이 준비됩니다.</p>
+        </div>
+        <div id="duelStats" class="duel-stats"></div>
+        <div id="duelResult" class="duel-result">
+          <span>공격자와 방어자의 능력치를 각각 선택하세요.</span>
+        </div>
+        <label class="damage-toggle">
+          <input id="skipDamageCalculation" type="checkbox">
+          데미지 계산안함
+        </label>
+        <label class="webhook-field">
+          디스코드 웹훅
+          <input id="discordWebhook" type="password" placeholder="Webhook URL">
+        </label>
+      </aside>
+
+      <section class="board-wrap" aria-label="배틀 맵">
+        <div class="board-frame">
+          <div id="board" class="board" aria-label="10 x 8 전술 격자"></div>
+        </div>
+      </section>
+
+      <aside id="detailBar" class="detail-bar" aria-label="유닛 상세 능력치">
+        <div class="empty-detail" id="emptyDetail">
+          <strong>유닛 선택</strong>
+          <p>말을 우클릭하면 상세 능력치가 표시됩니다.</p>
+        </div>
+
+        <form id="unitSheet" class="unit-sheet" hidden>
+          <header class="sheet-head">
+            <div>
+              <span id="sheetType" class="sheet-type">아군</span>
+              <input id="sheetName" class="sheet-name" type="text" aria-label="이름">
+            </div>
+            <label id="sheetImportBox" class="sheet-import-box" title="엑셀 파일의 합계 능력치를 가져옵니다.">
+              <span>파일 가져오기</span>
+              <input id="sheetImportFile" type="file" accept=".xlsx,.xls">
+            </label>
+            <button id="deleteUnit" class="danger" type="button">삭제</button>
+          </header>
+
+          <section class="vital-section" aria-label="체력과 스테미나">
+            <label>
+              <b>체력</b>
+              <span class="vital-inputs">
+                <input id="unitHp" type="number" min="0" max="999">
+                /
+                <input id="unitMaxHp" type="number" min="1" max="999">
+              </span>
+            </label>
+            <label>
+              <b>스테미나</b>
+              <span class="vital-inputs">
+                <input id="unitStamina" type="number" min="0" max="999">
+                /
+                <input id="unitMaxStamina" type="number" min="1" max="999">
+              </span>
+            </label>
+          </section>
+
+          <section aria-label="주능력치">
+            <h2>주능력치</h2>
+            <div id="primaryStats" class="primary-stats"></div>
+          </section>
+
+          <section aria-label="스킬">
+            <div class="section-title">
+              <h2>스킬</h2>
+              <button id="addSkill" type="button" aria-label="스킬 추가">+</button>
+            </div>
+            <div id="skillList" class="skill-list"></div>
+          </section>
+        </form>
+      </aside>
+
+      <section class="control-bar" aria-label="맵 조작">
+        <div class="legend" aria-label="말 종류">
+          <span><i class="dot player"></i>플레이어</span>
+          <span><i class="dot ally"></i>아군</span>
+          <span><i class="dot enemy"></i>적군</span>
+          <span><i class="box obstacle"></i>장애물</span>
+        </div>
+
+        <div class="add-tools" aria-label="말 추가">
+          <strong>추가:</strong>
+          <button type="button" data-add="ally">아군</button>
+          <button type="button" data-add="enemy">적군</button>
+          <button type="button" data-add="obstacle">장애물</button>
+        </div>
+
+        <div class="map-tools">
+          <button id="backToExploration" type="button">탐험 보드</button>
+          <button id="resetMap" type="button">맵 재설정</button>
+          <button id="editMap" type="button">맵만 수정</button>
+          <button id="saveLoadMap" type="button">맵 저장/불러오기</button>
+          <button id="captureMapImage" type="button">이미지 찍기</button>
+        </div>
+
+        <div class="log" aria-live="polite">
+          <span id="logIcon">⚔</span>
+          <p id="battleLog">배틀맵 [10 x 8] 생성 완료. 유닛은 드래그로 이동하고, 우클릭으로 상세 능력치를 봅니다.</p>
+        </div>
+      </section>
+    </main>
+
+    <form id="mapModal" class="modal" aria-label="맵 재설정" hidden>
+      <section class="modal-panel">
+        <header>
+          <h2>맵 재설정</h2>
+          <button id="closeMapModal" type="button" aria-label="닫기">×</button>
+        </header>
+        <div class="map-form-grid">
+          <label>
+            가로 값
+            <input id="mapCols" type="number" min="4" max="30" value="10">
+          </label>
+          <label>
+            세로 값
+            <input id="mapRows" type="number" min="4" max="30" value="8">
+          </label>
+          <label>
+            아군 말 갯수
+            <input id="mapAllies" type="number" min="0" max="99" value="3">
+          </label>
+          <label>
+            적군 말 갯수
+            <input id="mapEnemies" type="number" min="0" max="99" value="4">
+          </label>
+          <label>
+            장애물 값
+            <input id="mapObstacles" type="number" min="0" max="99" value="5">
+          </label>
+        </div>
+        <p>플레이어 말판은 항상 1개 생성됩니다.</p>
+        <div class="map-modal-saves">
+          <h3>저장된 맵</h3>
+          <div id="mapSaveList" class="save-list compact-save-list" aria-label="맵 재설정 저장 기록"></div>
+          <div class="map-save-actions">
+            <button id="mapSaveButton" type="button">저장하기</button>
+            <button id="mapLoadButton" type="button">불러오기</button>
+          </div>
+        </div>
+        <menu>
+          <button id="cancelMapModal" type="button">취소</button>
+          <button type="submit">생성</button>
+        </menu>
+      </section>
+    </form>
+
+    <form id="editMapModal" class="modal" aria-label="맵만 수정" hidden>
+      <section class="modal-panel">
+        <header>
+          <h2>맵만 수정</h2>
+          <button id="closeEditMapModal" type="button" aria-label="닫기">×</button>
+        </header>
+        <div class="map-form-grid">
+          <label>
+            가로 값
+            <input id="editMapCols" type="number" min="4" max="30" value="10">
+          </label>
+          <label>
+            세로 값
+            <input id="editMapRows" type="number" min="4" max="30" value="8">
+          </label>
+          <label>
+            장애물 값
+            <input id="editMapObstacles" type="number" min="0" max="99" value="5">
+          </label>
+          <label>
+            추가 아군 말
+            <input id="editMapAddAllies" type="number" min="0" max="99" value="0">
+          </label>
+          <label>
+            추가 적군 말
+            <input id="editMapAddEnemies" type="number" min="0" max="99" value="0">
+          </label>
+        </div>
+        <p>기존 말의 이름, 체력, 스킬, 능력치는 유지하고 맵과 장애물만 바꿉니다.</p>
+        <menu>
+          <button id="cancelEditMapModal" type="button">취소</button>
+          <button type="submit">수정</button>
+        </menu>
+      </section>
+    </form>
+
+    <section id="saveLoadModal" class="modal" aria-label="맵 저장과 불러오기" hidden>
+      <div class="modal-panel save-panel">
+        <header>
+          <h2>맵 저장/불러오기</h2>
+          <button id="closeSaveLoadModal" type="button" aria-label="닫기">×</button>
+        </header>
+        <div id="saveList" class="save-list" aria-label="저장된 기록"></div>
+        <menu>
+          <button id="saveMapButton" type="button">저장하기</button>
+          <button id="loadMapButton" type="button">불러오기</button>
+        </menu>
+      </div>
+    </section>
+
+    <form id="nameModal" class="modal" aria-label="저장 이름 입력" hidden>
+      <section class="modal-panel">
+        <header>
+          <h2>새로 저장하기</h2>
+          <button id="closeNameModal" type="button" aria-label="닫기">×</button>
+        </header>
+        <label class="single-field">
+          저장할 이름
+          <input id="saveNameInput" type="text" maxlength="40" autocomplete="off">
+        </label>
+        <menu>
+          <button id="cancelNameModal" type="button">취소</button>
+          <button type="submit">저장</button>
+        </menu>
+      </section>
+    </form>
+
+    <section id="confirmModal" class="modal" aria-label="확인" hidden>
+      <div class="modal-panel">
+        <header>
+          <h2 id="confirmTitle">확인</h2>
+        </header>
+        <p id="confirmMessage"></p>
+        <menu>
+          <button id="confirmNo" type="button">아니오</button>
+          <button id="confirmYes" type="button">예</button>
+        </menu>
+      </div>
+    </section>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="game.js"></script>
+  </body>
+</html>
