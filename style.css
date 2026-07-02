@@ -221,39 +221,98 @@ button:hover {
   place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.035);
   background: #050505;
+  isolation: isolate;
 }
 
 .explore-cell.path {
-  background: #222f38;
+  --path-color: #2b3440;
+  background: #050505;
 }
 
 .explore-cell.normal {
-  background: #2b3440;
+  --path-color: #2f3a45;
 }
 
 .explore-cell.fortune {
-  background: #2469a6;
-  box-shadow: inset 0 0 11px rgba(67, 169, 232, 0.58);
+  --path-color: #2f86c9;
 }
 
 .explore-cell.danger {
-  background: #92332e;
-  box-shadow: inset 0 0 11px rgba(240, 68, 56, 0.54);
+  --path-color: #b8423a;
 }
 
 .explore-cell.start {
-  background: #f4f2ec;
+  --path-color: #f4f2ec;
   color: #111;
   font-size: 10px;
   font-weight: 900;
 }
 
 .explore-cell.goal {
-  background: #1f7a47;
+  --path-color: #1f9b59;
   color: #fff;
   font-size: 10px;
   font-weight: 900;
+}
+
+.explore-cell.path::before,
+.explore-cell.path::after {
+  content: "";
+  position: absolute;
+  background: var(--path-color);
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.explore-cell.path::before {
+  left: 32%;
+  right: 32%;
+  top: 37%;
+  bottom: 37%;
+}
+
+.explore-cell.path::after {
+  left: 37%;
+  right: 37%;
+  top: 32%;
+  bottom: 32%;
+}
+
+.explore-cell.open-w::before {
+  left: 0;
+}
+
+.explore-cell.open-e::before {
+  right: 0;
+}
+
+.explore-cell.open-n::after {
+  top: 0;
+}
+
+.explore-cell.open-s::after {
+  bottom: 0;
+}
+
+.explore-cell.fortune::before,
+.explore-cell.fortune::after {
+  box-shadow: 0 0 10px rgba(67, 169, 232, 0.58);
+}
+
+.explore-cell.danger::before,
+.explore-cell.danger::after {
+  box-shadow: 0 0 10px rgba(240, 68, 56, 0.54);
+}
+
+.explore-cell.goal::before,
+.explore-cell.goal::after {
   box-shadow: 0 0 12px rgba(57, 226, 125, 0.52);
+}
+
+.explore-label {
+  position: relative;
+  z-index: 2;
 }
 
 .explore-cell.movable {
@@ -264,7 +323,8 @@ button:hover {
 }
 
 .exploration-board.fog-on .explore-cell.path:not(.start):not(.current) {
-  background: #1a1a1a;
+  --path-color: #1a1a1a;
+  background: #050505;
   color: transparent;
   box-shadow: none;
 }

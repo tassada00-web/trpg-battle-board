@@ -231,57 +231,111 @@ function generateExplorationState(preset, forkCount, goalCount) {
 
 function carveExplorationMainPath(state, paths, openCell, distance) {
   let current = { ...state.player };
-  const limit = distance * 3;
+  const limit = distance * 4;
 
   for (let step = 0; step < limit && current.x < state.cols - 3; step += 1) {
     const directions = shuffleExplorationDirections([
       { x: 1, y: 0 },
       { x: 1, y: 0 },
       { x: 1, y: 0 },
+      { x: 1, y: 0 },
       { x: 0, y: 1 },
       { x: 0, y: -1 }
     ]);
-    const next = directions
-      .map((direction) => ({ x: current.x + direction.x, y: current.y + direction.y }))
-      .find((point) => isInsideExplorationBounds(state, point.x, point.y));
+    const next = findExplorationCarveTarget(state, current, directions);
 
     if (!next) break;
     current = next;
     openCell(current.x, current.y);
   }
 
-  if (current.x < state.cols - 3) {
-    for (let x = current.x + 1; x < state.cols - 2; x += 1) {
-      current = { x, y: current.y };
-      openCell(current.x, current.y);
-    }
+  let guard = state.cols * state.rows;
+  while (current.x < state.cols - 3 && guard > 0) {
+    guard -= 1;
+    const centerY = Math.floor(state.rows / 2);
+    const verticalDirection = current.y < centerY ? { x: 0, y: 1 } : { x: 0, y: -1 };
+    const directions = current.y === centerY
+      ? [{ x: 1, y: 0 }]
+      : [{ x: 1, y: 0 }, verticalDirection];
+    const next = findExplorationCarveTarget(state, current, directions);
+
+    if (!next) break;
+    current = next;
+    openCell(current.x, current.y);
   }
 }
 
 function carveExplorationBranch(state, paths, openCell) {
   if (!paths.length) return;
 
-  let current = paths[Math.floor(Math.random() * paths.length)];
-  const length = 4 + Math.floor(Math.random() * 8);
+  const branchStarts = shuffleExplorationDirections(paths).filter((point) => (
+    countExplorationNeighbors(state, point.x, point.y) < 3 &&
+    getExplorationCarveTargets(state, point, [
+      { x: 1, y: 0 },
+      { x: -1, y: 0 },
+      { x: 0, y: 1 },
+      { x: 0, y: -1 }
+    ]).length > 0
+  ));
+  if (!branchStarts.length) return;
+
+  let current = branchStarts[0];
+  let lastDirection = null;
+  const length = 3 + Math.floor(Math.random() * 5);
 
   for (let step = 0; step < length; step += 1) {
     const directions = shuffleExplorationDirections([
+      ...(lastDirection ? [lastDirection, lastDirection] : []),
       { x: 1, y: 0 },
       { x: -1, y: 0 },
       { x: 0, y: 1 },
       { x: 0, y: -1 }
     ]);
-    const next = directions
-      .map((direction) => ({ x: current.x + direction.x, y: current.y + direction.y }))
-      .find((point) => (
-        isInsideExplorationBounds(state, point.x, point.y) &&
-        !state.tiles[point.y][point.x].open
-      ));
+    const next = findExplorationCarveTarget(state, current, directions);
 
     if (!next) break;
+    lastDirection = { x: next.x - current.x, y: next.y - current.y };
     current = next;
     openCell(current.x, current.y);
   }
+}
+
+function findExplorationCarveTarget(state, current, directions) {
+  return getExplorationCarveTargets(state, current, directions)[0];
+}
+
+function getExplorationCarveTargets(state, current, directions) {
+  return directions
+    .map((direction) => ({ x: current.x + direction.x, y: current.y + direction.y }))
+    .filter((point) => canOpenExplorationPathCell(state, point.x, point.y, current));
+}
+
+function canOpenExplorationPathCell(state, x, y, from) {
+  if (!isInsideExplorationBounds(state, x, y)) return false;
+  if (state.tiles[y][x].open) return false;
+
+  const neighbors = getExplorationNeighborPoints(state, x, y);
+  const touchesOrigin = neighbors.some((point) => point.x === from.x && point.y === from.y);
+  return neighbors.length === 1 && touchesOrigin && !wouldCreateExplorationBlock(state, x, y);
+}
+
+function wouldCreateExplorationBlock(state, x, y) {
+  for (let top = y - 1; top <= y; top += 1) {
+    for (let left = x - 1; left <= x; left += 1) {
+      let openCount = 0;
+      for (let yy = top; yy <= top + 1; yy += 1) {
+        for (let xx = left; xx <= left + 1; xx += 1) {
+          if (xx === x && yy === y) {
+            openCount += 1;
+          } else if (state.tiles[yy]?.[xx]?.open) {
+            openCount += 1;
+          }
+        }
+      }
+      if (openCount >= 4) return true;
+    }
+  }
+  return false;
 }
 
 function chooseExplorationGoals(state, goalCount) {
@@ -337,6 +391,15 @@ function getExplorationNeighborPoints(state, x, y) {
   ].filter((point) => state.tiles[point.y]?.[point.x]?.open);
 }
 
+function getExplorationPathShapeClasses(state, x, y) {
+  return [
+    state.tiles[y - 1]?.[x]?.open ? "open-n" : "",
+    state.tiles[y + 1]?.[x]?.open ? "open-s" : "",
+    state.tiles[y]?.[x - 1]?.open ? "open-w" : "",
+    state.tiles[y]?.[x + 1]?.open ? "open-e" : ""
+  ].filter(Boolean).join(" ");
+}
+
 function shuffleExplorationDirections(items) {
   return [...items].sort(() => Math.random() - 0.5);
 }
@@ -361,17 +424,28 @@ function renderExploration() {
       const cell = document.createElement("div");
       const isCurrent = explorationState.player.x === x && explorationState.player.y === y;
       const isMovable = isExplorationMoveTarget(x, y);
-      cell.className = `explore-cell ${tile.open ? `path ${tile.kind}` : "wall"}${isCurrent ? " current" : ""}${isMovable ? " movable" : ""}`;
+      const pathShape = tile.open ? getExplorationPathShapeClasses(explorationState, x, y) : "";
+      cell.className = [
+        "explore-cell",
+        tile.open ? `path ${tile.kind}` : "wall",
+        pathShape,
+        isCurrent ? "current" : "",
+        isMovable ? "movable" : ""
+      ].filter(Boolean).join(" ");
       cell.dataset.x = String(x);
       cell.dataset.y = String(y);
 
-      if (tile.kind === "start") cell.textContent = "S";
-      if (tile.kind === "goal") cell.textContent = "G";
+      if (tile.kind === "start" || tile.kind === "goal") {
+        const label = document.createElement("span");
+        label.className = "explore-label";
+        label.textContent = tile.kind === "start" ? "S" : "G";
+        cell.append(label);
+      }
       if (isMovable) cell.addEventListener("click", () => moveExplorationPlayer(x, y));
       if (isCurrent) {
         const pawn = document.createElement("div");
         pawn.className = "explore-pawn";
-        cell.textContent = "";
+        cell.replaceChildren();
         cell.append(pawn);
       }
 
